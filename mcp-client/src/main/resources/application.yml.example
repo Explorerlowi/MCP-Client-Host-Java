@@ -1,0 +1,38 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: mcp-client
+  
+  datasource:
+    url: jdbc:h2:mem:mcpclient
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    defer-datasource-initialization: true
+  
+  # 数据库初始化已禁用，所有配置从 mcp-config.json 加载
+  
+  h2:
+    console:
+      enabled: true
+
+# gRPC 配置
+grpc:
+  server:
+    port: 9090
+
+# 日志配置
+logging:
+  level:
+    com.mcp.client: DEBUG
+    org.springframework.web: DEBUG
