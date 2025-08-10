@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP 工具调用测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #e9ecef;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+            color: #155724;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .example-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .example-btn {
+            background-color: #28a745;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        .example-btn:hover {
+            background-color: #218838;
+        }
+        .info-box {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ 高德地图 MCP 工具调用测试</h1>
+        
+        <div class="info-box">
+            <h3>📋 可用工具列表</h3>
+            <p><strong>1. maps_text_search</strong> - 关键词搜索 POI</p>
+            <p><strong>2. maps_geo</strong> - 地址转坐标</p>
+            <p><strong>3. maps_regeocode</strong> - 坐标转地址</p>
+            <p><strong>4. maps_weather</strong> - 天气查询</p>
+            <p><strong>5. maps_direction_driving</strong> - 驾车路径规划</p>
+            <p><strong>6. maps_direction_walking</strong> - 步行路径规划</p>
+            <p><strong>7. maps_around_search</strong> - 周边搜索</p>
+            <p><strong>8. maps_distance</strong> - 距离测量</p>
+            <p>等等... 共12个工具</p>
+        </div>
+
+        <div class="section">
+            <h2>🚀 快速示例</h2>
+            <div class="example-buttons">
+                <button class="example-btn" onclick="loadExample('search')">POI 搜索</button>
+                <button class="example-btn" onclick="loadExample('geocode')">地址转坐标</button>
+                <button class="example-btn" onclick="loadExample('regeocode')">坐标转地址</button>
+                <button class="example-btn" onclick="loadExample('weather')">天气查询</button>
+                <button class="example-btn" onclick="loadExample('driving')">驾车路径</button>
+                <button class="example-btn" onclick="loadExample('walking')">步行路径</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📝 JSON 指令输入</h2>
+            <textarea id="jsonInput" placeholder='输入 JSON 指令，例如：
+{
+  "server_name": "amap-maps",
+  "tool_name": "maps_text_search",
+  "arguments": {
+    "keywords": "北京天安门",
+    "city": "北京"
+  }
+}'></textarea>
+            <br><br>
+            <button onclick="generateGrpcCommand()">生成 gRPC 调用命令</button>
+            <button onclick="clearInput()">清空输入</button>
+        </div>
+
+        <div class="section">
+            <h2>📊 gRPC 调用信息</h2>
+            <div id="result" class="result">
+等待生成 gRPC 调用命令...
+
+💡 使用说明：
+1. 选择上面的快速示例或手动输入 JSON 指令
+2. 点击"生成 gRPC 调用命令"
+3. 复制生成的 grpcurl 命令到命令行执行
+4. 查看实际的工具调用结果
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>ℹ️ 系统信息</h2>
+            <div class="result">
+<strong>MCP 客户端服务：</strong>
+• Web 服务器: http://localhost:8086
+• gRPC 服务器: localhost:9090
+• H2 数据库控制台: http://localhost:8086/h2-console
+
+<strong>测试方法：</strong>
+1. 在上面输入 JSON 指令
+2. 生成 gRPC 调用命令
+3. 在命令行中执行 grpcurl 命令
+4. 查看高德地图 API 的实际返回结果
+
+<strong>注意：</strong>
+• 需要安装 grpcurl 工具
+• 确保 MCP 客户端服务正在运行
+• 高德地图 API 需要有效的 API Key
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 示例指令模板
+        const examples = {
+            search: {
+                server_name: "amap-maps",
+                tool_name: "maps_text_search",
+                arguments: {
+                    keywords: "北京天安门",
+                    city: "北京"
+                }
+            },
+            geocode: {
+                server_name: "amap-maps",
+                tool_name: "maps_geo",
+                arguments: {
+                    address: "北京市朝阳区望京SOHO",
+                    city: "北京"
+                }
+            },
+            regeocode: {
+                server_name: "amap-maps",
+                tool_name: "maps_regeocode",
+                arguments: {
+                    location: "116.397428,39.90923"
+                }
+            },
+            weather: {
+                server_name: "amap-maps",
+                tool_name: "maps_weather",
+                arguments: {
+                    city: "北京"
+                }
+            },
+            driving: {
+                server_name: "amap-maps",
+                tool_name: "maps_direction_driving",
+                arguments: {
+                    origin: "116.397428,39.90923",
+                    destination: "116.481488,39.990464"
+                }
+            },
+            walking: {
+                server_name: "amap-maps",
+                tool_name: "maps_direction_walking",
+                arguments: {
+                    origin: "116.397428,39.90923",
+                    destination: "116.481488,39.990464"
+                }
+            }
+        };
+
+        function loadExample(type) {
+            const example = examples[type];
+            if (example) {
+                document.getElementById('jsonInput').value = JSON.stringify(example, null, 2);
+                showResult(`已加载 ${type} 示例指令，点击"生成 gRPC 调用命令"按钮继续`, 'info');
+            }
+        }
+
+        function generateGrpcCommand() {
+            const jsonInput = document.getElementById('jsonInput').value.trim();
+            
+            if (!jsonInput) {
+                showResult('请先输入 JSON 指令', 'error');
+                return;
+            }
+
+            let command;
+            try {
+                command = JSON.parse(jsonInput);
+            } catch (error) {
+                showResult(`JSON 格式错误:\n${error.message}`, 'error');
+                return;
+            }
+
+            if (!command.server_name || !command.tool_name) {
+                showResult('JSON 指令必须包含 server_name 和 tool_name 字段', 'error');
+                return;
+            }
+
+            const grpcRequest = {
+                server_name: command.server_name,
+                tool_name: command.tool_name,
+                arguments: command.arguments || {}
+            };
+
+            // 为 Windows PowerShell 生成正确的命令格式
+            const jsonString = JSON.stringify(grpcRequest).replace(/"/g, '\\"');
+            const grpcCommand = `grpcurl -plaintext -d "${jsonString}" localhost:9090 com.mcp.grpc.MCPClientService/CallTool`;
+
+            // 也提供 proto 文件版本（更可靠）
+            const grpcCommandWithProto = `grpcurl -plaintext -proto mcp-service.proto -d "${jsonString}" localhost:9090 com.mcp.grpc.MCPClientService/CallTool`;
+
+            const result = `🚀 gRPC 调用信息生成成功！
+
+📋 请求内容：
+${JSON.stringify(grpcRequest, null, 2)}
+
+🔧 Windows PowerShell 命令（推荐）：
+${grpcCommand}
+
+🔧 使用 proto 文件的命令（更可靠）：
+${grpcCommandWithProto}
+
+📝 使用步骤：
+1. 确保 MCP 客户端服务正在运行 (localhost:9090)
+2. 安装 grpcurl 工具 (如果还没有安装)
+3. 复制上面的任一命令到 PowerShell 中执行
+4. 查看高德地图 API 的实际返回结果
+
+💡 提示：
+• Windows 用户推荐使用上面转义后的命令格式
+• proto 文件版本更可靠，不依赖反射 API
+• 确保高德地图 API Key 配置正确
+• 查看服务器日志了解详细的执行过程
+
+📁 文件输入方式（避免转义问题）：
+1. 将请求内容保存为 request.json 文件
+2. 使用命令：grpcurl -plaintext -proto mcp-service.proto -d @request.json localhost:9090 com.mcp.grpc.MCPClientService/CallTool`;
+
+            showResult(result, 'success');
+        }
+
+        function clearInput() {
+            document.getElementById('jsonInput').value = '';
+            showResult('输入已清空，等待新的指令...', 'info');
+        }
+
+        function showResult(content, type = 'info') {
+            const element = document.getElementById('result');
+            element.className = `result ${type}`;
+            element.textContent = content;
+        }
+
+        // 页面加载时显示欢迎信息
+        window.onload = function() {
+            showResult('页面已加载，请选择示例或输入自定义 JSON 指令开始测试', 'info');
+        };
+    </script>
+</body>
+</html>

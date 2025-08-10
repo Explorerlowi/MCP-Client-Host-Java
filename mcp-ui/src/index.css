@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Exo 2', 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #00ffaa;
+  background: radial-gradient(ellipse at top, #0a0a0a 0%, #000000 50%, #001122 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  /* 机甲科幻配色变量 */
+  --cyber-primary: #00ffaa;
+  --cyber-secondary: #ff6b35;
+  --cyber-accent: #00d4ff;
+  --cyber-dark: #0a0a0a;
+  --cyber-darker: #000000;
+  --cyber-gray: #1a1a1a;
+  --cyber-border: #00ffaa33;
+  --cyber-glow: 0 0 20px #00ffaa44;
+  --cyber-pulse: 0 0 30px #00ffaa66;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--cyber-darker);
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(135deg, 
+    rgba(0, 255, 170, 0.03) 0%, 
+    rgba(0, 0, 0, 0.9) 25%, 
+    rgba(0, 17, 34, 0.8) 75%, 
+    rgba(255, 107, 53, 0.05) 100%
+  );
+}
+
+/* 全局科幻样式 */
+.cyber-border {
+  border: 1px solid var(--cyber-border);
+  box-shadow: var(--cyber-glow);
+  backdrop-filter: blur(10px);
+}
+
+.cyber-glow {
+  box-shadow: var(--cyber-pulse);
+  animation: pulse-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-glow {
+  from { box-shadow: var(--cyber-glow); }
+  to { box-shadow: var(--cyber-pulse); }
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cyber-dark);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--cyber-primary), var(--cyber-accent));
+  border-radius: 4px;
+  box-shadow: 0 0 10px var(--cyber-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--cyber-accent), var(--cyber-primary));
+}

@@ -1,0 +1,29 @@
+{
+  "mcpServers" : {
+    "amap-maps" : {
+      "command" : "npx",
+      "args" : [ "-y", "@amap/amap-maps-mcp-server" ],
+      "env" : {
+        "AMAP_MAPS_API_KEY" : "your_amap_api_key_here"
+      },
+      "url" : null,
+      "type" : "stdio",
+      "enabled" : true,
+      "description" : "高德地图MCP服务器",
+      "timeout" : 60
+    },
+    "example-server" : {
+      "command" : "your_command_here",
+      "args" : [ "arg1", "arg2" ],
+      "env" : {
+        "API_KEY" : "your_api_key_here",
+        "OTHER_CONFIG" : "your_config_value"
+      },
+      "url" : null,
+      "type" : "stdio",
+      "enabled" : false,
+      "description" : "示例MCP服务器配置",
+      "timeout" : 60
+    }
+  }
+}

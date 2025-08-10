@@ -1,0 +1,99 @@
+# 编译输出
+target/
+build/
+dist/
+out/
+
+# 依赖
+node_modules/
+
+# 日志文件
+*.log
+logs/
+
+# 包含敏感信息的配置文件
+**/application.yml
+**/application.yaml
+**/application-*.yml
+**/application-*.yaml
+mcp-config.json
+
+# IDE 文件 (保留 .cursor 和 .kiro)
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Gradle
+.gradle/
+gradle/
+gradlew
+gradlew.bat
+
+# Spring Boot
+spring.log
+
+# H2 数据库文件
+*.db
+*.mv.db
+*.trace.db
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 备份文件
+*.bak
+*.backup
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.rar
+
+# 其他
+*.pid
+*.seed
+*.pid.lock
+
+# npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 测试覆盖率
+coverage/
+*.lcov
+
+# 缓存
+.cache/
+.parcel-cache/
+
+# 构建工具
+.next/
+.nuxt/
+.vuepress/dist/
+
+# 服务器文件
+.serverless/
+
+# 本地配置
+local.properties

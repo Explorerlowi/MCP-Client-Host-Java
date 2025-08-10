@@ -1,0 +1,347 @@
+/* 内容展开行样式 */
+.content-expanded-row {
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+}
+
+.content-container {
+  padding: 20px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.content-header h4 {
+  margin: 0;
+  color: #495057;
+  font-size: 1.1rem;
+}
+
+.loading-indicator {
+  color: #6c757d;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* 加载状态样式 */
+.content-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #6c757d;
+}
+
+.loading-spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 内容网格布局 */
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+}
+
+/* 工具卡片样式 */
+.tool-card {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.tool-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.tool-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.tool-name {
+  margin: 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tool-server-badge {
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.tool-description {
+  color: #6c757d;
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.tool-schema {
+  margin-top: 10px;
+}
+
+.tool-schema summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #495057;
+  padding: 5px 0;
+  user-select: none;
+}
+
+.tool-schema summary:hover {
+  color: #007bff;
+}
+
+.schema-content {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 10px;
+  margin-top: 5px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* 资源卡片样式 */
+.resource-card {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.resource-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.resource-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.resource-name {
+  margin: 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.resource-server-badge {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.resource-description {
+  color: #6c757d;
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.resource-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.resource-uri,
+.resource-mime,
+.resource-size,
+.resource-priority {
+  font-size: 0.8rem;
+  color: #6c757d;
+  padding: 2px 0;
+}
+
+.resource-uri {
+  word-break: break-all;
+}
+
+/* 提示模板卡片样式 */
+.prompt-card {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.prompt-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.prompt-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.prompt-name {
+  margin: 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.prompt-server-badge {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.prompt-description {
+  color: #6c757d;
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.prompt-arguments {
+  margin-top: 10px;
+}
+
+.prompt-arguments summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #495057;
+  padding: 5px 0;
+  user-select: none;
+}
+
+.prompt-arguments summary:hover {
+  color: #007bff;
+}
+
+.arguments-list {
+  margin-top: 10px;
+  padding-left: 10px;
+}
+
+.argument-item {
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+}
+
+.argument-name {
+  font-weight: 600;
+  color: #495057;
+  margin-right: 8px;
+}
+
+.required-badge {
+  background-color: #dc3545;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.argument-description {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #6c757d;
+  line-height: 1.3;
+}
+
+/* 无内容状态样式 */
+.no-content {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+}
+
+.no-content-icon {
+  font-size: 3rem;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.no-content p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .content-container {
+    padding: 15px;
+  }
+  
+  .tool-card,
+  .resource-card,
+  .prompt-card {
+    padding: 12px;
+  }
+  
+  .resource-card-header,
+  .prompt-card-header,
+  .tool-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .resource-server-badge,
+  .prompt-server-badge,
+  .tool-server-badge {
+    margin-left: 0;
+    margin-top: 5px;
+  }
+}

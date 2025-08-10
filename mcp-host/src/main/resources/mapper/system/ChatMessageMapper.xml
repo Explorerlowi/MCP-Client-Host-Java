@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mcp.host.mapper.ChatMessageMapper">
+
+    <resultMap type="com.mcp.host.domain.ChatMessage" id="ChatMessageResult">
+        <id     property="id"               column="chatMessage_id"     />
+        <result property="chatId"           column="chat_id"            />
+        <result property="userId"           column="user_id"            />
+        <result property="sortId"           column="sort_id"            />
+        <result property="senderRole"       column="sender_role"        />
+        <result property="reasoningContent" column="reasoning_content"  />
+        <result property="messageContent"   column="message_content"    />
+        <result property="extraContent"     column="extra_content"      />
+        <result property="messageType"      column="message_type"       />
+        <result property="delFlag"          column="del_flag"           />
+        <result property="createTime"       column="create_time"        />
+        <result property="updateTime"       column="update_time"        />
+    </resultMap>
+
+    <sql id="selectChatMessageVo">
+        select chatMessage_id, chat_id, user_id, sort_id, sender_role, reasoning_content, 
+               message_content, extra_content, message_type, del_flag, create_time, update_time
+        from chat_message
+    </sql>
+
+    <select id="selectChatMessageById" parameterType="Long" resultMap="ChatMessageResult">
+        <include refid="selectChatMessageVo"/>
+        where chatMessage_id = #{id} and del_flag = 0
+    </select>
+
+    <select id="selectMessagesByUserId" parameterType="Long" resultMap="ChatMessageResult">
+        <include refid="selectChatMessageVo"/>
+        where user_id = #{userId} and del_flag = 0
+        order by sort_id desc
+    </select>
+
+    <select id="selectRecentMessagesByUserId" resultMap="ChatMessageResult">
+        <include refid="selectChatMessageVo"/>
+        where chat_id = #{chatId} and user_id = #{userId} and del_flag = 0
+        order by sort_id desc
+        limit #{limit}
+    </select>
+
+    <select id="selectContextMessagesForChat" resultMap="ChatMessageResult">
+        <include refid="selectChatMessageVo"/>
+        where chat_id = #{chatId} and user_id = #{userId} and del_flag = 0
+        order by sort_id desc
+        limit #{limit}
+    </select>
+
+    <select id="selectChatHistory" parameterType="com.mcp.host.domain.dto.ChatHistoryRequestDto" resultMap="ChatMessageResult">
+        <include refid="selectChatMessageVo"/>
+        <where>
+            del_flag = 0
+            <if test="chatId != null">
+                and chat_id = #{chatId}
+            </if>
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+            <if test="messageType != null">
+                and message_type = #{messageType}
+            </if>
+            <if test="senderRole != null">
+                and sender_role = #{senderRole}
+            </if>
+            <if test="lastSortId != null">
+                <choose>
+                    <when test="descOrder == true">
+                        and sort_id &lt; #{lastSortId}
+                    </when>
+                    <otherwise>
+                        and sort_id &gt; #{lastSortId}
+                    </otherwise>
+                </choose>
+            </if>
+        </where>
+        order by 
+        <choose>
+            <when test="descOrder == true">
+                sort_id desc
+            </when>
+            <otherwise>
+                sort_id asc
+            </otherwise>
+        </choose>
+        limit #{size}
+    </select>
+
+    <insert id="insertChatMessage" parameterType="com.mcp.host.domain.ChatMessage" useGeneratedKeys="true" keyProperty="id" keyColumn="chatMessage_id">
+        insert into chat_message
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="chatId != null">chat_id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="sortId != null">sort_id,</if>
+            <if test="senderRole != null">sender_role,</if>
+            <if test="reasoningContent != null">reasoning_content,</if>
+            <if test="messageContent != null">message_content,</if>
+            <if test="extraContent != null">extra_content,</if>
+            <if test="messageType != null">message_type,</if>
+            <if test="delFlag != null">del_flag,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="chatId != null">#{chatId},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="sortId != null">#{sortId},</if>
+            <if test="senderRole != null">#{senderRole},</if>
+            <if test="reasoningContent != null">#{reasoningContent},</if>
+            <if test="messageContent != null">#{messageContent},</if>
+            <if test="extraContent != null">#{extraContent},</if>
+            <if test="messageType != null">#{messageType},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateChatMessage" parameterType="com.mcp.host.domain.ChatMessage">
+        update chat_message
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="chatId != null">chat_id = #{chatId},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="sortId != null">sort_id = #{sortId},</if>
+            <if test="senderRole != null">sender_role = #{senderRole},</if>
+            <if test="reasoningContent != null">reasoning_content = #{reasoningContent},</if>
+            <if test="messageContent != null">message_content = #{messageContent},</if>
+            <if test="extraContent != null">extra_content = #{extraContent},</if>
+            <if test="messageType != null">message_type = #{messageType},</if>
+            <if test="delFlag != null">del_flag = #{delFlag},</if>
+        </trim>
+        where chatMessage_id = #{id}
+    </update>
+
+    <delete id="deleteChatMessageById" parameterType="Long">
+        update chat_message set del_flag = 1 where chatMessage_id = #{id}
+    </delete>
+
+    <delete id="deleteChatMessagesByChatId" parameterType="Long">
+        update chat_message set del_flag = 1 where chat_id = #{chatId}
+    </delete>
+
+    <!-- 根据消息ID和用户ID删除消息（权限验证） -->
+    <delete id="deleteMessageByIdAndUserId">
+        update chat_message 
+        set del_flag = 1 
+        where chatMessage_id = #{messageId} 
+        and user_id = #{userId} 
+        and del_flag = 0
+    </delete>
+
+    <!-- 批量删除消息（从指定消息开始删除） -->
+    <delete id="deleteMessagesFromIndex">
+        update chat_message 
+        set del_flag = 1 
+        where chat_id = #{chatId} 
+        and del_flag = 0
+        and sort_id >= (
+            select sort_id from (
+                select sort_id from chat_message 
+                where chatMessage_id = #{fromMessageId} 
+                and del_flag = 0
+            ) as temp
+        )
+    </delete>
+
+    <!-- 清空会话所有消息（带权限验证） -->
+    <delete id="clearChatMessagesByUserId">
+        update chat_message 
+        set del_flag = 1 
+        where chat_id = #{chatId} 
+        and user_id = #{userId} 
+        and del_flag = 0
+    </delete>
+
+</mapper> 

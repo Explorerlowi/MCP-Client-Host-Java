@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mcp.host.mapper.ChatMapper">
+
+    <resultMap type="com.mcp.host.domain.Chat" id="ChatResult">
+        <id     property="chatId"           column="chat_id"            />
+        <result property="userId"           column="user_id"            />
+        <result property="agentId"          column="agent_id"           />
+        <result property="chatTitle"        column="chat_title"         />
+        <result property="lastMessageId"    column="last_message_id"    />
+        <result property="lastMessageTime"  column="last_message_time"  />
+        <result property="unreadCount"      column="unread_count"       />
+        <result property="isPinned"         column="is_pinned"          />
+        <result property="isStarred"        column="is_starred"         />
+        <result property="delFlag"          column="del_flag"           />
+        <result property="createTime"       column="create_time"        />
+        <result property="updateTime"       column="update_time"        />
+    </resultMap>
+
+    <sql id="selectChatVo">
+        select chat_id, user_id, agent_id, chat_title, last_message_id, last_message_time,
+               unread_count, is_pinned, is_starred, del_flag, create_time, update_time
+        from chat
+    </sql>
+
+    <select id="selectChatsByUserId" parameterType="Long" resultMap="ChatResult">
+        <include refid="selectChatVo"/>
+        where user_id = #{userId} and del_flag = 0
+        order by is_pinned desc, last_message_time desc, create_time desc
+    </select>
+
+    <select id="selectChatsByUsername" parameterType="String" resultMap="ChatResult">
+        <include refid="selectChatVo"/>
+        where user_id = (
+            select user_id from sys_user where user_name = #{username} and del_flag = '0'
+        ) and del_flag = 0
+        order by is_pinned desc, last_message_time desc, create_time desc
+    </select>
+
+    <select id="selectChatById" parameterType="Long" resultMap="ChatResult">
+        <include refid="selectChatVo"/>
+        where chat_id = #{chatId} and del_flag = 0
+    </select>
+
+    <insert id="insertChat" parameterType="com.mcp.host.domain.Chat" useGeneratedKeys="true" keyProperty="chatId">
+        insert into chat
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="agentId != null">agent_id,</if>
+            <if test="chatTitle != null and chatTitle != ''">chat_title,</if>
+            <if test="lastMessageId != null">last_message_id,</if>
+            <if test="lastMessageTime != null">last_message_time,</if>
+            <if test="unreadCount != null">unread_count,</if>
+            <if test="isPinned != null">is_pinned,</if>
+            <if test="isStarred != null">is_starred,</if>
+            <if test="delFlag != null">del_flag,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="agentId != null">#{agentId},</if>
+            <if test="chatTitle != null and chatTitle != ''">#{chatTitle},</if>
+            <if test="lastMessageId != null">#{lastMessageId},</if>
+            <if test="lastMessageTime != null">#{lastMessageTime},</if>
+            <if test="unreadCount != null">#{unreadCount},</if>
+            <if test="isPinned != null">#{isPinned},</if>
+            <if test="isStarred != null">#{isStarred},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+        </trim>
+    </insert>
+
+    <update id="updateChat" parameterType="com.mcp.host.domain.Chat">
+        update chat
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="agentId != null">agent_id = #{agentId},</if>
+            <if test="chatTitle != null">chat_title = #{chatTitle},</if>
+            <if test="lastMessageId != null">last_message_id = #{lastMessageId},</if>
+            <if test="lastMessageTime != null">last_message_time = #{lastMessageTime},</if>
+            <if test="unreadCount != null">unread_count = #{unreadCount},</if>
+            <if test="isPinned != null">is_pinned = #{isPinned},</if>
+            <if test="isStarred != null">is_starred = #{isStarred},</if>
+            update_time = now()
+        </trim>
+        where chat_id = #{chatId}
+    </update>
+
+    <update id="updateChatStarredStatus">
+        update chat set is_starred = #{isStarred}, update_time = now()
+        where chat_id = #{chatId} and del_flag = 0
+    </update>
+
+    <update id="updateChatPinnedStatus">
+        update chat set is_pinned = #{isPinned}, update_time = now()
+        where chat_id = #{chatId} and del_flag = 0
+    </update>
+
+    <update id="deleteChatById" parameterType="Long">
+        update chat set del_flag = 1, update_time = now()
+        where chat_id = #{chatId}
+    </update>
+
+    <update id="deleteChatByIds" parameterType="Long">
+        update chat set del_flag = 1, update_time = now()
+        where chat_id in
+        <foreach collection="array" item="chatId" open="(" separator="," close=")">
+            #{chatId}
+        </foreach>
+    </update>
+
+    <update id="updateChatLastMessage">
+        update chat 
+        set last_message_id = #{lastMessageId}, 
+            last_message_time = #{lastMessageTime},
+            update_time = now()
+        where chat_id = #{chatId}
+    </update>
+
+    <update id="updateChatUnreadCount">
+        update chat 
+        set unread_count = #{unreadCount},
+            update_time = now()
+        where chat_id = #{chatId}
+    </update>
+
+    <update id="resetChatUnreadCount" parameterType="Long">
+        update chat 
+        set unread_count = 0,
+            update_time = now()
+        where chat_id = #{chatId}
+    </update>
+
+</mapper> 

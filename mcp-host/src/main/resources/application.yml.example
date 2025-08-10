@@ -1,0 +1,119 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: mcp-host
+  datasource:
+    url: jdbc:mysql://localhost:3306/mcp?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: your_db_username
+    password: your_db_password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+mybatis:
+  mapper-locations: classpath*:mapper/system/*.xml
+  type-aliases-package: com.mcp.host.domain
+
+# MCP 客户端 gRPC 配置
+mcp:
+  client:
+    grpc:
+      host: localhost
+      port: 9090
+      timeout-seconds: 120  # gRPC 调用超时时间（秒），默认120秒
+  
+  # 提示模板配置
+  prompt:
+    system:
+      introduction: "你是一个智能助手，可以使用以下工具来帮助用户：\n\n"
+      server-group-title: "## %s 服务器工具\n"
+      tool-item: "- **%s**: %s\n"
+      tool-parameter-format: "  参数格式: %s\n"
+      fallback: |
+        你是一个智能助手。当前无法获取可用的工具列表，但你仍然可以：
+        
+        1. 回答用户的问题
+        2. 提供建议和指导
+        3. 进行对话交流
+        
+        如果用户需要使用特定工具，请告知他们当前工具服务不可用，建议稍后重试。
+    
+    tool-instruction:
+      title: "## 工具调用说明\n"
+      json-format: |
+        当需要使用工具时，请在响应中包含以下格式的 JSON 指令：
+        
+        ```json
+        {
+            "type": "use_mcp_tool",
+            "server_name": "服务器名称",
+            "tool_name": "工具名称",
+            "arguments": {
+                "参数名": "参数值"
+            }
+        }
+        ```
+      important-notes: |
+        ## 重要提示
+        
+        1. 工具调用结果会自动替换 JSON 指令显示给用户
+        2. 请确保 server_name 和 tool_name 与上述列表中的完全匹配
+        3. arguments 中的参数必须符合工具的输入格式要求
+        4. 如果工具调用失败，系统会显示错误信息
+        
+        现在请根据用户的需求，选择合适的工具来协助完成任务。
+    
+    cache:
+      ttl-minutes: 30
+      max-size: 100
+      enabled: true
+      auto-refresh-interval-minutes: 10
+
+# 固定 Agent 配置（不再从数据库读取）
+agent:
+  fixed:
+    agent-name: "默认Agent"
+    agent-description: "固定配置的Agent"
+    chat-enabled: true
+    system-prompt: |
+      你是一个乐于助人的智能助手。
+    llm-supplier: "通义千问"
+    model: "qwen3-32b"
+    stream: true
+    temperature: 0.7
+    top-p: 1.0
+    presence-penalty: 0.0
+    frequency-penalty: 0.0
+    max-tokens: 4096
+    enable-thinking: true
+    thinkingBudget: 2048
+
+# LLM 配置
+llm:
+  openai:
+    api-key: your_openai_api_key
+    base-url: https://api.openai.com/v1
+    model: gpt-3.5-turbo
+    temperature: 0.7
+    max-tokens: 4096
+    timeout-seconds: 30
+
+  qianwen:
+    url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    key: your_qianwen_api_key
+
+  rate-limit:
+    requests-per-minute: 60
+    requests-per-hour: 1000
+
+# 日志配置
+logging:
+  level:
+    com.mcp.host: DEBUG
+    io.grpc: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

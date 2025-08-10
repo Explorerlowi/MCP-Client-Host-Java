@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mcp.host.mapper.AgentMapper">
+
+    <resultMap type="com.mcp.host.domain.Agent" id="AgentResult">
+        <id     property="id"               column="agent_id"           />
+        <result property="agentName"        column="agent_name"         />
+        <result property="agentDescription" column="agent_description"  />
+        <result property="chatEnabled"      column="chat_enabled"       />
+        <result property="systemPrompt"     column="system_prompt"      />
+        <result property="llmSupplier"      column="llm_supplier"       />
+        <result property="model"            column="model"              />
+        <result property="stream"           column="stream"             />
+        <result property="temperature"      column="temperature"        />
+        <result property="topP"             column="top_p"              />
+        <result property="topK"             column="top_k"              />
+        <result property="presencePenalty"  column="presence_penalty"   />
+        <result property="frequencyPenalty" column="frequency_penalty"  />
+        <result property="maxTokens"        column="max_tokens"         />
+        <result property="enableThinking"   column="enable_thinking"    />
+        <result property="thinkingBudget"   column="thinking_budget"    />
+        <result property="isPinned"         column="is_pinned"          />
+        <result property="delFlag"          column="del_flag"           />
+    </resultMap>
+
+    <sql id="selectAgentVo">
+        select agent_id, agent_name, agent_description, chat_enabled, system_prompt, 
+               llm_supplier, model, stream, temperature, top_p, top_k, presence_penalty, 
+               frequency_penalty, max_tokens, enable_thinking, thinking_budget, is_pinned, del_flag
+        from agent
+    </sql>
+
+    <select id="selectAgentById" parameterType="Long" resultMap="AgentResult">
+        <include refid="selectAgentVo"/>
+        where agent_id = #{id} and del_flag = 0
+    </select>
+
+    <select id="selectAgentList" parameterType="com.mcp.host.domain.Agent" resultMap="AgentResult">
+        <include refid="selectAgentVo"/>
+        <where>
+            del_flag = 0
+            <if test="agentName != null and agentName != ''">
+                and agent_name like concat('%', #{agentName}, '%')
+            </if>
+            <if test="chatEnabled != null">
+                and chat_enabled = #{chatEnabled}
+            </if>
+            <if test="llmSupplier != null and llmSupplier != ''">
+                and llm_supplier = #{llmSupplier}
+            </if>
+            <if test="model != null and model != ''">
+                and model = #{model}
+            </if>
+            <if test="isPinned != null">
+                and is_pinned = #{isPinned}
+            </if>
+        </where>
+        order by is_pinned desc, agent_id asc
+    </select>
+
+    <insert id="insertAgent" parameterType="com.mcp.host.domain.Agent" useGeneratedKeys="true" keyProperty="id" keyColumn="agent_id">
+        insert into agent
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="agentName != null">agent_name,</if>
+            <if test="agentDescription != null">agent_description,</if>
+            <if test="chatEnabled != null">chat_enabled,</if>
+            <if test="systemPrompt != null">system_prompt,</if>
+            <if test="llmSupplier != null">llm_supplier,</if>
+            <if test="model != null">model,</if>
+            <if test="stream != null">stream,</if>
+            <if test="temperature != null">temperature,</if>
+            <if test="topP != null">top_p,</if>
+            <if test="topK != null">top_k,</if>
+            <if test="presencePenalty != null">presence_penalty,</if>
+            <if test="frequencyPenalty != null">frequency_penalty,</if>
+            <if test="maxTokens != null">max_tokens,</if>
+            <if test="enableThinking != null">enable_thinking,</if>
+            <if test="thinkingBudget != null">thinking_budget,</if>
+            <if test="isPinned != null">is_pinned,</if>
+            <if test="delFlag != null">del_flag,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="agentName != null">#{agentName},</if>
+            <if test="agentDescription != null">#{agentDescription},</if>
+            <if test="chatEnabled != null">#{chatEnabled},</if>
+            <if test="systemPrompt != null">#{systemPrompt},</if>
+            <if test="llmSupplier != null">#{llmSupplier},</if>
+            <if test="model != null">#{model},</if>
+            <if test="stream != null">#{stream},</if>
+            <if test="temperature != null">#{temperature},</if>
+            <if test="topP != null">#{topP},</if>
+            <if test="topK != null">#{topK},</if>
+            <if test="presencePenalty != null">#{presencePenalty},</if>
+            <if test="frequencyPenalty != null">#{frequencyPenalty},</if>
+            <if test="maxTokens != null">#{maxTokens},</if>
+            <if test="enableThinking != null">#{enableThinking},</if>
+            <if test="thinkingBudget != null">#{thinkingBudget},</if>
+            <if test="isPinned != null">#{isPinned},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateAgent" parameterType="com.mcp.host.domain.Agent">
+        update agent
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="agentName != null">agent_name = #{agentName},</if>
+            <if test="agentDescription != null">agent_description = #{agentDescription},</if>
+            <if test="chatEnabled != null">chat_enabled = #{chatEnabled},</if>
+            <if test="systemPrompt != null">system_prompt = #{systemPrompt},</if>
+            <if test="llmSupplier != null">llm_supplier = #{llmSupplier},</if>
+            <if test="model != null">model = #{model},</if>
+            <if test="stream != null">stream = #{stream},</if>
+            <if test="temperature != null">temperature = #{temperature},</if>
+            <if test="topP != null">top_p = #{topP},</if>
+            <if test="topK != null">top_k = #{topK},</if>
+            <if test="presencePenalty != null">presence_penalty = #{presencePenalty},</if>
+            <if test="frequencyPenalty != null">frequency_penalty = #{frequencyPenalty},</if>
+            <if test="maxTokens != null">max_tokens = #{maxTokens},</if>
+            <if test="enableThinking != null">enable_thinking = #{enableThinking},</if>
+            <if test="thinkingBudget != null">thinking_budget = #{thinkingBudget},</if>
+            <if test="isPinned != null">is_pinned = #{isPinned},</if>
+            <if test="delFlag != null">del_flag = #{delFlag},</if>
+        </trim>
+        where agent_id = #{id}
+    </update>
+
+    <delete id="deleteAgentById" parameterType="Long">
+        update agent set del_flag = 1 where agent_id = #{id}
+    </delete>
+
+    <delete id="deleteAgentByIds" parameterType="Long">
+        update agent set del_flag = 1 where agent_id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectEnabledAgentList" resultMap="AgentResult">
+        <include refid="selectAgentVo"/>
+        where del_flag = 0 and chat_enabled = 1
+        order by is_pinned desc, agent_id asc
+    </select>
+
+</mapper> 
