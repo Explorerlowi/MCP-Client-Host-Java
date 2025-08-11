@@ -40,13 +40,7 @@ const ServerList: React.FC<ServerListProps> = ({
   };
 
   // 获取状态显示样式
-  const getStatusClass = (health: MCPServerHealth | undefined): string => {
-    if (!health) return 'status-unknown';
-    if (health.connected) return 'status-connected';
-    return 'status-disconnected';
-  };
-
-  // 获取状态文本
+// 获取状态文本
   const getStatusText = (health: MCPServerHealth | undefined): string => {
     if (!health) return '未知';
     if (health.connected) return '已连接';
@@ -68,9 +62,25 @@ const ServerList: React.FC<ServerListProps> = ({
   };
 
   // 格式化日期
-  const formatDate = (date: Date | undefined): string => {
+  const formatDate = (date: Date | string | number | undefined): string => {
     if (!date) return '-';
-    return format(new Date(date), 'yyyy-MM-dd HH:mm:ss');
+    try {
+      let dateObj: Date;
+      if (typeof date === 'number') {
+        // 处理时间戳（毫秒）
+        dateObj = new Date(date);
+      } else if (typeof date === 'string') {
+        dateObj = new Date(date);
+      } else {
+        dateObj = date;
+      }
+
+      if (isNaN(dateObj.getTime())) return '-';
+      return format(dateObj, 'yyyy-MM-dd HH:mm:ss');
+    } catch (error) {
+      console.error('日期格式化错误:', error, date);
+      return '-';
+    }
   };
 
   // 处理内容展开/收起
@@ -123,15 +133,6 @@ const ServerList: React.FC<ServerListProps> = ({
   };
 
   // 格式化JSON Schema
-  const formatSchema = (schema: string | undefined): string => {
-    if (!schema) return '{}';
-    try {
-      return JSON.stringify(JSON.parse(schema), null, 2);
-    } catch {
-      return schema;
-    }
-  };
-
   if (servers.length === 0) {
     return (
       <div className="bg-black/30 backdrop-blur-xl border border-orange-400/30 rounded-xl shadow-[0_0_30px_rgba(255,107,53,0.1)] relative overflow-hidden">
@@ -195,38 +196,38 @@ const ServerList: React.FC<ServerListProps> = ({
       
       {/* 表格容器 */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        {/* 固定表头 */}
+        <table className="w-full server-table-fixed">
           <thead>
-            <tr className="bg-slate-950/50 border-b border-orange-400/20">
-              <th className="px-6 py-4 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">服务器ID</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">名称</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">传输协议</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">状态</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">描述</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">最后检查</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">操作</th>
+            <tr className="bg-slate-950/50 border-b border-orange-400/20 server-table-header">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">服务器ID</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">名称</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">传输协议</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">状态</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">最后检查</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-orange-300 uppercase tracking-wider">操作</th>
             </tr>
           </thead>
-          <tbody>
+        </table>
+
+        {/* 可滚动的表格内容 */}
+        <div className="overflow-y-auto max-h-80">
+          <table className="w-full server-table-fixed">
+            <tbody>
             {servers.map((server) => {
               const health = getServerHealth(server.id);
               return (
                 <React.Fragment key={server.id}>
-                  <tr className={`border-b border-orange-400/10 hover:bg-slate-950/30 transition-colors ${!server.enabled ? 'opacity-60' : ''}`}>
-                  <td className="px-6 py-4">
+                  <tr className={`border-b border-orange-400/10 hover:bg-slate-950/30 transition-colors server-table-body ${server.disabled ? 'opacity-60' : ''}`}>
+                  <td className="px-3 py-2">
                     <div className="flex items-center space-x-2">
-                      <span className="font-mono text-sm text-cyan-300">{server.id}</span>
-                      {!server.enabled && (
-                        <span className="px-2 py-1 text-xs bg-gray-600/50 text-gray-300 rounded border border-gray-500/50">
-                          已禁用
-                        </span>
-                      )}
+                      <span className="font-mono text-sm text-cyan-300 truncate block max-w-[180px]" title={server.id}>{server.id}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-gray-200 font-medium">{server.name || server.id}</span>
+                  <td className="px-3 py-2">
+                    <span className="text-gray-200 font-medium truncate block max-w-[180px]" title={server.name || server.id}>{server.name || server.id}</span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-2">
                     <span className={`px-3 py-1 text-xs font-medium rounded-full border ${
                       server.transport.toLowerCase() === 'stdio' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
                       server.transport.toLowerCase() === 'sse' ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' :
@@ -235,7 +236,7 @@ const ServerList: React.FC<ServerListProps> = ({
                       {getTransportText(server.transport)}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-2">
                     <div className="flex items-center space-x-2">
                       <div className={`w-2 h-2 rounded-full ${
                         !health ? 'bg-gray-500' :
@@ -258,18 +259,13 @@ const ServerList: React.FC<ServerListProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-400 max-w-xs truncate" title={server.description}>
-                      {server.description || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-2">
                     <div className="text-xs text-gray-500 font-mono">
                       {formatDate(health?.lastCheck)}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
+                  <td className="px-2 py-2">
+                    <div className="flex flex-wrap gap-2 items-center max-w-full">
                       <button
                         onClick={() => onEdit(server)}
                         disabled={isLoading}
@@ -359,8 +355,9 @@ const ServerList: React.FC<ServerListProps> = ({
                 </React.Fragment>
               );
             })}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
       {/* 服务器详情模态框 */}
       <ServerDetailsModal

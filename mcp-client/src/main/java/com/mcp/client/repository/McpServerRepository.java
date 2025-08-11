@@ -14,10 +14,10 @@ import java.util.Optional;
 public interface McpServerRepository extends JpaRepository<McpServerSpec, String> {
     
     /**
-     * 查找所有启用的服务器
+     * 查找所有启用的服务器（未禁用的）
      * @return 启用的服务器列表
      */
-    List<McpServerSpec> findByEnabledTrue();
+    List<McpServerSpec> findByDisabledFalse();
     
     /**
      * 根据传输类型查找服务器
@@ -34,10 +34,10 @@ public interface McpServerRepository extends JpaRepository<McpServerSpec, String
     boolean existsById(String id);
     
     /**
-     * 根据ID查找启用的服务器
+     * 根据ID查找启用的服务器（未禁用的）
      * @param id 服务器ID
      * @return 服务器配置
      */
-    @Query("SELECT s FROM McpServerSpec s WHERE s.id = :id AND s.enabled = true")
-    Optional<McpServerSpec> findByIdAndEnabled(String id);
+    @Query("SELECT s FROM McpServerSpec s WHERE s.id = :id AND s.disabled = false")
+    Optional<McpServerSpec> findByIdAndDisabled(String id);
 }

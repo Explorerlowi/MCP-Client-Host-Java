@@ -110,7 +110,7 @@ public class MCPConfigurationService {
         McpServerSpec.McpServerSpecBuilder builder = McpServerSpec.builder()
                 .id(serverId)
                 .transport(transportType)
-                .enabled(config.isEnabled());
+                .disabled(config.isDisabled());
         
         // 设置超时时间（秒）
         if (config.getTimeout() != null) {
@@ -246,7 +246,7 @@ public class MCPConfigurationService {
      */
     private MCPServerConfig.ServerConfig convertFromServerSpec(McpServerSpec spec) {
         MCPServerConfig.ServerConfig config = new MCPServerConfig.ServerConfig();
-        config.setEnabled(spec.isEnabled());
+        config.setDisabled(spec.isDisabled());
         config.setType(spec.getTransport().name().toLowerCase());
         config.setTimeout(spec.getTimeout());
         

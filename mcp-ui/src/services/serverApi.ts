@@ -58,7 +58,9 @@ export class ServerApiService {
         serverId: item.server_id || item.serverId,
         connected: item.connected,
         status: item.status,
-        lastCheck: item.last_check ? new Date(item.last_check) : new Date(),
+        lastCheck: item.last_check ? new Date(item.last_check * 1000) :
+                  item.lastCheckTime ? new Date(item.lastCheckTime) :
+                  new Date(),
         errorMessage: item.error_message || item.errorMessage,
         responseTime: item.response_time_ms || item.responseTime,
         serverInfo: item.server_info || item.serverInfo
@@ -80,7 +82,9 @@ export class ServerApiService {
         serverId: item.server_id || item.serverId,
         connected: item.connected,
         status: item.status,
-        lastCheck: item.last_check ? new Date(item.last_check) : new Date(),
+        lastCheck: item.last_check ? new Date(item.last_check * 1000) :
+                  item.lastCheckTime ? new Date(item.lastCheckTime) :
+                  new Date(),
         errorMessage: item.error_message || item.errorMessage,
         responseTime: item.response_time_ms || item.responseTime,
         serverInfo: item.server_info || item.serverInfo

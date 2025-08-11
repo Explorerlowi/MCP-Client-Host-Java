@@ -154,7 +154,19 @@ public class MCPServerController {
     public ResponseEntity<String> reconnectServer(@PathVariable String id) {
         try {
             log.info("重新连接服务器: {}", id);
-            mcpClientService.reconnectServer(id);
+
+            // 获取服务器配置
+            McpServerSpec spec = serverRegistry.getSpec(id);
+            if (spec == null) {
+                return ResponseEntity.badRequest().body("服务器不存在: " + id);
+            }
+
+            // 确保服务器是启用状态
+            spec.setDisabled(false);
+
+            // 重新注册服务器（这会重新建立连接并保存配置）
+            serverRegistry.register(spec);
+
             return ResponseEntity.ok("服务器重新连接成功: " + id);
         } catch (Exception e) {
             log.error("重新连接服务器失败: {}", id, e);
@@ -171,20 +183,80 @@ public class MCPServerController {
         try {
             log.info("关闭服务器连接: {}", id);
 
-            // 获取客户端并关闭连接
-            var client = serverRegistry.getClient(id);
-            if (client != null) {
-                client.close();
-                log.info("成功关闭服务器连接: {}", id);
-                return ResponseEntity.ok("服务器连接已关闭: " + id);
-            } else {
-                return ResponseEntity.badRequest()
-                        .body("服务器不存在或未连接: " + id);
+            // 获取服务器配置
+            McpServerSpec spec = serverRegistry.getSpec(id);
+            if (spec == null) {
+                return ResponseEntity.badRequest().body("服务器不存在: " + id);
             }
+
+            // 将服务器标记为禁用
+            spec.setDisabled(true);
+
+            // 重新注册服务器（这会关闭连接并保存配置）
+            serverRegistry.register(spec);
+
+            log.info("成功关闭服务器连接并更新配置: {}", id);
+            return ResponseEntity.ok("服务器连接已关闭: " + id);
         } catch (Exception e) {
             log.error("关闭服务器连接失败: {}", id, e);
             return ResponseEntity.badRequest()
                     .body("关闭服务器连接失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 启用服务器
+     */
+    @PostMapping("/{id}/enable")
+    public ResponseEntity<String> enableServer(@PathVariable String id) {
+        try {
+            log.info("启用服务器: {}", id);
+
+            // 获取服务器配置
+            McpServerSpec spec = serverRegistry.getSpec(id);
+            if (spec == null) {
+                return ResponseEntity.badRequest().body("服务器不存在: " + id);
+            }
+
+            // 更新禁用状态
+            spec.setDisabled(false);
+
+            // 重新注册服务器（这会更新数据库和配置文件）
+            serverRegistry.register(spec);
+
+            return ResponseEntity.ok("服务器已启用: " + id);
+        } catch (Exception e) {
+            log.error("启用服务器失败: {}", id, e);
+            return ResponseEntity.badRequest()
+                    .body("启用服务器失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 禁用服务器
+     */
+    @PostMapping("/{id}/disable")
+    public ResponseEntity<String> disableServer(@PathVariable String id) {
+        try {
+            log.info("禁用服务器: {}", id);
+
+            // 获取服务器配置
+            McpServerSpec spec = serverRegistry.getSpec(id);
+            if (spec == null) {
+                return ResponseEntity.badRequest().body("服务器不存在: " + id);
+            }
+
+            // 更新禁用状态
+            spec.setDisabled(true);
+
+            // 重新注册服务器（这会更新数据库和配置文件，并关闭连接）
+            serverRegistry.register(spec);
+
+            return ResponseEntity.ok("服务器已禁用: " + id);
+        } catch (Exception e) {
+            log.error("禁用服务器失败: {}", id, e);
+            return ResponseEntity.badRequest()
+                    .body("禁用服务器失败: " + e.getMessage());
         }
     }
     

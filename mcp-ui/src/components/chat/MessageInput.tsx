@@ -18,6 +18,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const DRAFT_KEY = 'mcp_chat_input_draft';
 
   // 自动调整文本框高度
   const adjustTextareaHeight = () => {
@@ -32,6 +33,28 @@ const MessageInput: React.FC<MessageInputProps> = ({
     adjustTextareaHeight();
   }, [message]);
 
+  // 初始加载草稿
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        setMessage(saved);
+      }
+    } catch (err) {
+      // 忽略本地存储异常
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 文本变化时保存草稿
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, message);
+    } catch (err) {
+      // 忽略本地存储异常
+    }
+  }, [message]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isStreaming) {
@@ -42,6 +65,11 @@ const MessageInput: React.FC<MessageInputProps> = ({
     if (message.trim()) {
       onSendMessage(message.trim());
       setMessage('');
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch (err) {
+        // 忽略本地存储异常
+      }
     }
   };
 

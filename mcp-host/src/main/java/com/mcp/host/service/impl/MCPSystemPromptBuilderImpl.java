@@ -120,7 +120,7 @@ public class MCPSystemPromptBuilderImpl implements MCPSystemPromptBuilder {
                 .serverName(grpcTool.getServerName())
                 .inputSchema(grpcTool.getInputSchema())
                 .outputSchema(grpcTool.getOutputSchema())
-                .enabled(true)
+                .disabled(false)
                 .build();
     }
     

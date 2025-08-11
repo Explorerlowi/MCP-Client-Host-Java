@@ -55,17 +55,21 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
     private void loadServerSpec(McpServerSpec spec) {
         // 验证配置
         validateSpec(spec);
-        
+
         // 注册到内存
         specs.put(spec.getId(), spec);
-        
-        // 创建客户端连接
-        try {
-            MCPClient client = buildClient(spec);
-            clients.put(spec.getId(), client);
-        } catch (Exception e) {
-            log.warn("创建 MCP 客户端连接失败: {}, 将在后续调用时重试", spec.getId());
-            // 不抛出异常，允许延迟连接
+
+        // 只有未禁用的服务器才创建客户端连接
+        if (!spec.isDisabled()) {
+            try {
+                MCPClient client = buildClient(spec);
+                clients.put(spec.getId(), client);
+            } catch (Exception e) {
+                log.warn("创建 MCP 客户端连接失败: {}, 将在后续调用时重试", spec.getId());
+                // 不抛出异常，允许延迟连接
+            }
+        } else {
+            log.debug("服务器已禁用，跳过创建客户端连接: {}", spec.getId());
         }
     }
     
@@ -94,28 +98,42 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                 // 不抛出异常，因为服务器注册已经成功
             }
 
-            // 创建客户端连接
-            clients.compute(spec.getId(), (k, oldClient) -> {
-                // 关闭旧连接
+            // 只有未禁用的服务器才创建客户端连接
+            if (!spec.isDisabled()) {
+                clients.compute(spec.getId(), (k, oldClient) -> {
+                    // 关闭旧连接
+                    if (oldClient != null) {
+                        try {
+                            oldClient.close();
+                            log.debug("已关闭旧的 MCP 客户端连接: {}", k);
+                        } catch (Exception e) {
+                            log.warn("关闭旧 MCP 客户端连接时发生错误: {}", k, e);
+                        }
+                    }
+
+                    // 创建新连接
+                    try {
+                        MCPClient newClient = buildClient(spec);
+                        log.info("成功创建 MCP 客户端连接: {}", k);
+                        return newClient;
+                    } catch (Exception e) {
+                        log.error("创建 MCP 客户端连接失败: {}", k, e);
+                        throw new McpException("创建客户端连接失败: " + e.getMessage(), e);
+                    }
+                });
+            } else {
+                // 如果服务器被禁用，关闭现有连接
+                MCPClient oldClient = clients.remove(spec.getId());
                 if (oldClient != null) {
                     try {
                         oldClient.close();
-                        log.debug("已关闭旧的 MCP 客户端连接: {}", k);
+                        log.debug("服务器已禁用，已关闭 MCP 客户端连接: {}", spec.getId());
                     } catch (Exception e) {
-                        log.warn("关闭旧 MCP 客户端连接时发生错误: {}", k, e);
+                        log.warn("关闭 MCP 客户端连接时发生错误: {}", spec.getId(), e);
                     }
                 }
-
-                // 创建新连接
-                try {
-                    MCPClient newClient = buildClient(spec);
-                    log.info("成功创建 MCP 客户端连接: {}", k);
-                    return newClient;
-                } catch (Exception e) {
-                    log.error("创建 MCP 客户端连接失败: {}", k, e);
-                    throw new McpException("创建客户端连接失败: " + e.getMessage(), e);
-                }
-            });
+                log.debug("服务器已禁用，跳过创建客户端连接: {}", spec.getId());
+            }
 
             log.info("MCP 服务器注册成功: {}", spec.getId());
         } catch (Exception e) {
@@ -225,6 +243,11 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                 throw new McpServerNotFoundException("服务器未找到: " + serverId);
             }
 
+            // 检查服务器是否被禁用
+            if (spec.isDisabled()) {
+                throw new McpException("服务器已被禁用: " + serverId);
+            }
+
             try {
                 log.debug("尝试创建/重新创建 MCP 客户端连接: {}", serverId);
                 client = buildClient(spec);
@@ -257,13 +280,20 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                     try {
                         String serverId = entry.getKey();
                         MCPClient client = entry.getValue();
-                        
+
+                        // 检查服务器是否被禁用
+                        McpServerSpec spec = specs.get(serverId);
+                        if (spec != null && spec.isDisabled()) {
+                            log.debug("服务器已禁用，跳过获取工具: {}", serverId);
+                            return java.util.stream.Stream.empty();
+                        }
+
                         // 检查连接状态
                         if (!client.isConnected()) {
                             log.warn("MCP 服务器连接已断开，跳过获取工具: {}", serverId);
                             return java.util.stream.Stream.empty();
                         }
-                        
+
                         // 获取工具列表并设置服务器名称
                         return client.getTools().stream()
                                 .peek(tool -> tool.setServerName(serverId));
@@ -282,13 +312,20 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                     try {
                         String serverId = entry.getKey();
                         MCPClient client = entry.getValue();
-                        
+
+                        // 检查服务器是否被禁用
+                        McpServerSpec spec = specs.get(serverId);
+                        if (spec != null && spec.isDisabled()) {
+                            log.debug("服务器已禁用，跳过获取资源: {}", serverId);
+                            return java.util.stream.Stream.empty();
+                        }
+
                         // 检查连接状态
                         if (!client.isConnected()) {
                             log.warn("MCP 服务器连接已断开，跳过获取资源: {}", serverId);
                             return java.util.stream.Stream.empty();
                         }
-                        
+
                         // 获取资源列表并设置服务器名称
                         return client.getResources().stream()
                                 .peek(resource -> resource.setServerName(serverId));
@@ -307,13 +344,20 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                     try {
                         String serverId = entry.getKey();
                         MCPClient client = entry.getValue();
-                        
+
+                        // 检查服务器是否被禁用
+                        McpServerSpec spec = specs.get(serverId);
+                        if (spec != null && spec.isDisabled()) {
+                            log.debug("服务器已禁用，跳过获取提示模板: {}", serverId);
+                            return java.util.stream.Stream.empty();
+                        }
+
                         // 检查连接状态
                         if (!client.isConnected()) {
                             log.warn("MCP 服务器连接已断开，跳过获取提示模板: {}", serverId);
                             return java.util.stream.Stream.empty();
                         }
-                        
+
                         // 获取提示模板列表并设置服务器名称
                         return client.getPrompts().stream()
                                 .peek(prompt -> prompt.setServerName(serverId));

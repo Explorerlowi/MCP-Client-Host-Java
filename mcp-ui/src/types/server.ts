@@ -15,7 +15,7 @@ export interface McpServerSpec {
   command?: string;
   args?: string[];
   env?: Record<string, string>;
-  enabled: boolean;
+  disabled: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -48,7 +48,7 @@ export interface ServerFormData {
   command: string;
   args: string;
   env: string;
-  enabled: boolean;
+  disabled: boolean;
 }
 
 export interface ServerOperationResponse {
@@ -88,7 +88,7 @@ export interface MCPPrompt {
   title?: string;
   description?: string;
   serverName: string;
-  enabled?: boolean;
+  disabled?: boolean;
   usageCount?: number;
   category?: string;
   arguments?: {

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
     transport VARCHAR(50) NOT NULL,
     url VARCHAR(500),
     command VARCHAR(500),
-    enabled BOOLEAN DEFAULT TRUE,
+    disabled BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS mcp_server_env (
 );
 
 -- 创建索引
-CREATE INDEX IF NOT EXISTS idx_mcp_servers_enabled ON mcp_servers(enabled);
+CREATE INDEX IF NOT EXISTS idx_mcp_servers_disabled ON mcp_servers(disabled);
 CREATE INDEX IF NOT EXISTS idx_mcp_servers_transport ON mcp_servers(transport);
 CREATE INDEX IF NOT EXISTS idx_mcp_server_args_server_id ON mcp_server_args(server_id);
 CREATE INDEX IF NOT EXISTS idx_mcp_server_env_server_id ON mcp_server_env(server_id);

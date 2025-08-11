@@ -40,10 +40,10 @@ public class MCPTool {
     private String outputSchema;
     
     /**
-     * 工具是否启用
+     * 工具是否禁用
      */
     @Builder.Default
-    private boolean enabled = true;
+    private boolean disabled = false;
     
     /**
      * 工具类别

@@ -41,7 +41,10 @@ public class MCPStdioClient extends AbstractMCPClient {
             log.info("启动 MCP 服务器进程: {} {}", spec.getCommand(), argsInfo);
 
             ProcessBuilder pb = new ProcessBuilder();
-            pb.command(spec.getCommand());
+
+            // 处理 Windows 系统的命令格式
+            String command = resolveCommand(spec.getCommand());
+            pb.command(command);
 
             if (spec.getArgs() != null && !spec.getArgs().isEmpty()) {
                 pb.command().addAll(spec.getArgs());
@@ -151,6 +154,65 @@ public class MCPStdioClient extends AbstractMCPClient {
         }
 
         return false;
+    }
+
+    /**
+     * 解析命令，处理不同操作系统的兼容性问题
+     * 特别是 Windows 系统中的 .cmd 扩展名问题
+     */
+    private String resolveCommand(String command) {
+        if (command == null || command.trim().isEmpty()) {
+            return command;
+        }
+
+        // 检查是否为 Windows 系统
+        String osName = System.getProperty("os.name").toLowerCase();
+        boolean isWindows = osName.contains("windows");
+
+        if (!isWindows) {
+            return command;
+        }
+
+        // Windows 系统下的特殊处理
+        String trimmedCommand = command.trim();
+
+        // 常见的 Node.js 命令需要添加 .cmd 扩展名
+        String[] nodeCommands = {"npm", "npx", "node", "yarn", "pnpm"};
+
+        for (String nodeCmd : nodeCommands) {
+            if (trimmedCommand.equals(nodeCmd)) {
+                // 尝试找到带 .cmd 扩展名的版本
+                String cmdVersion = nodeCmd + ".cmd";
+                if (isCommandAvailable(cmdVersion)) {
+                    log.debug("Windows 系统：将命令 '{}' 解析为 '{}'", command, cmdVersion);
+                    return cmdVersion;
+                }
+            }
+        }
+
+        return command;
+    }
+
+    /**
+     * 检查命令是否可用
+     */
+    private boolean isCommandAvailable(String command) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder();
+            if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+                pb.command("cmd", "/c", "where", command);
+            } else {
+                pb.command("which", command);
+            }
+
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+            return exitCode == 0;
+
+        } catch (Exception e) {
+            log.debug("检查命令可用性失败: {}", command, e);
+            return false;
+        }
     }
     
     @Override

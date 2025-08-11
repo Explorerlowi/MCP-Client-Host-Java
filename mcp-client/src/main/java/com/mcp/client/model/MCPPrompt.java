@@ -57,10 +57,10 @@ public class MCPPrompt {
     private String serverName;
     
     /**
-     * 提示模板是否启用
+     * 提示模板是否禁用
      */
     @Builder.Default
-    private boolean enabled = true;
+    private boolean disabled = false;
     
     /**
      * 使用次数统计

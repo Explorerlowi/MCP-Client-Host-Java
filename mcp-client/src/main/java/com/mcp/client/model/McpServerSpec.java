@@ -46,7 +46,7 @@ public class McpServerSpec {
     private Map<String, String> env;
     
     @Builder.Default
-    private boolean enabled = true;
+    private boolean disabled = false;
     
     /**
      * 请求超时时间（秒），默认60秒

@@ -33,7 +33,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
     command: '',
     args: '',
     env: '',
-    enabled: true
+    disabled: false
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -50,7 +50,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
         command: server.command || '',
         args: server.args ? server.args.join('\n') : '',
         env: server.env ? Object.entries(server.env).map(([key, value]) => `${key}=${value}`).join('\n') : '',
-        enabled: server.enabled
+        disabled: server.disabled
       });
     } else {
       // 重置表单
@@ -63,7 +63,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
         command: '',
         args: '',
         env: '',
-        enabled: true
+        disabled: false
       });
     }
     setErrors({});
@@ -143,7 +143,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
               return [key.trim(), valueParts.join('=').trim()];
             })
         ) : undefined,
-      enabled: formData.enabled
+      disabled: formData.disabled
     };
 
     onSave(serverSpec);
@@ -245,12 +245,12 @@ const ServerForm: React.FC<ServerFormProps> = ({
               <Label>启用服务器</Label>
               <div className="flex items-center space-x-2 pt-2">
                 <Switch
-                  checked={formData.enabled}
-                  onCheckedChange={(checked) => handleInputChange('enabled', checked)}
+                  checked={!formData.disabled}
+                  onCheckedChange={(checked) => handleInputChange('disabled', !checked)}
                   disabled={isLoading}
                 />
                 <span className="text-sm text-cyan-200/80">
-                  {formData.enabled ? '已启用' : '已禁用'}
+                  {!formData.disabled ? '已启用' : '已禁用'}
                 </span>
               </div>
             </div>

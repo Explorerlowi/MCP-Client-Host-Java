@@ -33,9 +33,9 @@ public class MCPToolInfo {
     @JsonProperty("output_schema")
     private String outputSchema;
     
-    @JsonProperty("enabled")
+    @JsonProperty("disabled")
     @Builder.Default
-    private boolean enabled = true;
+    private boolean disabled = false;
     
     @JsonProperty("category")
     private String category;

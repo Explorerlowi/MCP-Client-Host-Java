@@ -35,6 +35,18 @@ cp mcp-host/src/main/resources/application.yml.example mcp-host/src/main/resourc
 - 数据库连接信息
 - LLM API密钥（OpenAI、通义千问等）
 
+#### MCP Client 配置
+
+复制配置模板并修改：
+```bash
+cp mcp-client/src/main/resources/application.yml.example mcp-client/src/main/resources/application.yml
+```
+
+MCP Client 使用 H2 内存数据库，通常不需要修改配置。如需自定义，可修改以下配置：
+- 服务端口（默认：8086）
+- gRPC端口（默认：9090）
+- 日志级别
+
 #### MCP 服务器配置
 
 复制配置模板并修改：
@@ -42,12 +54,25 @@ cp mcp-host/src/main/resources/application.yml.example mcp-host/src/main/resourc
 cp mcp-config.json.example mcp-config.json
 ```
 
-在 `mcp-config.json` 中配置你的MCP服务器，包括：
-- 服务器命令和参数
-- 环境变量（API密钥等）
-- 超时设置
+可在 `mcp-config.json` 中配置你的MCP服务器，也可在前端界面中进行配置。
 
-### 3. 启动服务
+### 3. 构建项目
+
+在启动服务之前，需要先构建各个模块：
+
+#### 构建MCP Client
+```bash
+cd mcp-client
+mvn clean install
+```
+
+#### 构建MCP Host
+```bash
+cd mcp-host
+mvn clean install
+```
+
+### 4. 启动服务
 
 #### 启动MCP Client
 ```bash
@@ -64,11 +89,17 @@ mvn spring-boot:run
 #### 启动前端界面
 ```bash
 cd mcp-ui
+```
+
+```bash
 npm install
+```
+
+```bash
 npm run dev
 ```
 
-### 4. 访问应用
+### 5. 访问应用
 
 - 前端界面: http://localhost:5173
 - MCP Host API: http://localhost:8087
@@ -104,8 +135,13 @@ npm run dev
 
 ### 构建项目
 ```bash
-# 构建所有模块
-mvn clean package
+# 开发环境构建（包含依赖安装）
+cd mcp-client && mvn clean install
+cd ../mcp-host && mvn clean install
+
+# 生产环境构建（打包）
+cd mcp-client && mvn clean package
+cd ../mcp-host && mvn clean package
 
 # 构建前端
 cd mcp-ui

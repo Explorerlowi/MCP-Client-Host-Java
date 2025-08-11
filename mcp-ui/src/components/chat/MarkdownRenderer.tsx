@@ -16,11 +16,12 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
         remarkPlugins={[remarkGfm]}
         components={{
           // 代码块渲染
-          code({ node, inline, className, children, ...props }) {
+          code({ node, className, children, ...props }: any) {
+            const inline = !className;
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
               <SyntaxHighlighter
-                style={tomorrow}
+                style={tomorrow as any}
                 language={match[1]}
                 PreTag="div"
                 className="rounded-lg !bg-slate-950/80 !border !border-cyan-400/20"

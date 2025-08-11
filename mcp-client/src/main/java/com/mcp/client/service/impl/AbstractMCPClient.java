@@ -289,7 +289,7 @@ public abstract class AbstractMCPClient implements MCPClient {
                                     .inputSchema(toolNode.has("inputSchema") ? 
                                             toolNode.get("inputSchema").toString() : "{}")
                                     .serverName(spec.getId())
-                                    .enabled(true)
+                                    .disabled(false)
                                     .build();
                             tools.add(tool);
                         } catch (Exception e) {
