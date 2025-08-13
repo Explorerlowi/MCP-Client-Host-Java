@@ -228,6 +228,16 @@ public class MCPStdioClient extends AbstractMCPClient {
             
             // 解析服务器能力信息
             parseInitializeResponse(initResponse);
+	            
+	            // 发送 notifications/initialized 通知（STDIO 下通知不等待响应）
+	            JsonNode initializedNotification = buildInitializedNotification();
+	            try {
+	                sendNotification(initializedNotification);
+	                log.debug("已发送 notifications/initialized 通知 [{}]", spec.getId());
+	            } catch (McpConnectionException e) {
+	                // 某些服务器可能不会返回任何内容，发送失败在此记录即可
+	                log.debug("发送 notifications/initialized 通知时收到异常 [{}]: {}", spec.getId(), e.getMessage());
+	            }
             
             log.debug("MCP 握手协议完成: {}", spec.getId());
             
@@ -268,6 +278,26 @@ public class MCPStdioClient extends AbstractMCPClient {
             throw new McpConnectionException("发送请求失败", e);
         }
     }
+
+	    /**
+	     * 发送通知（不等待响应）
+	     */
+	    private void sendNotification(JsonNode notification) throws McpConnectionException {
+	        if (!isProcessAlive()) {
+	            throw new McpConnectionException("MCP 服务器进程已终止");
+	        }
+
+	        try {
+	            String notificationStr = notification.toString();
+	            log.debug("发送 MCP 通知 [{}]: {}", spec.getId(), notificationStr);
+	            writer.write(notificationStr);
+	            writer.newLine();
+	            writer.flush();
+	        } catch (IOException e) {
+	            log.error("发送 MCP 通知失败: {}", spec.getId(), e);
+	            throw new McpConnectionException("发送通知失败", e);
+	        }
+	    }
     
     @Override
     public MCPToolResult callTool(String toolName, Map<String, String> arguments) {

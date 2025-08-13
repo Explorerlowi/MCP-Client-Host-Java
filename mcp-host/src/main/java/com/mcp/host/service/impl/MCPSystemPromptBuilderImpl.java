@@ -57,6 +57,22 @@ public class MCPSystemPromptBuilderImpl implements MCPSystemPromptBuilder {
     }
     
     @Override
+    public String buildSystemPromptForServers(List<String> serverNames) {
+        if (serverNames == null || serverNames.isEmpty()) {
+            return buildSystemPromptWithMCPTools();
+        }
+        try {
+            List<MCPToolInfo> tools = serverNames.stream()
+                    .flatMap(name -> getToolsForServer(name).stream())
+                    .collect(Collectors.toList());
+            return buildPromptFromTools(tools);
+        } catch (Exception e) {
+            log.error("构建多服务器系统提示失败", e);
+            return buildFallbackPrompt();
+        }
+    }
+    
+    @Override
     public List<MCPToolInfo> getAvailableTools() {
         log.debug("获取所有可用的 MCP 工具列表");
 

@@ -68,14 +68,15 @@ public class LLMControllerRefactored {
             @RequestParam @NotBlank String message,
             @RequestParam(defaultValue = "1") @NotNull @Min(1) Long chatId,
             @RequestParam(defaultValue = "1") @NotNull @Min(1) Long userId,
-            @RequestParam(defaultValue = "1") @NotNull @Min(1) Long agentId) {
+            @RequestParam(defaultValue = "1") @NotNull @Min(1) Long agentId,
+            @RequestParam(name = "servers", required = false) String serversCsv) {
         
         log.info("发送消息请求: sessionId={}, chatId={}, userId={}, agentId={}, messageLength={}", 
                 sessionId, chatId, userId, agentId, message.length());
         
         try {
             Long messageId = chatOrchestrationService.processMessage(
-                    sessionId, message, chatId, userId, agentId);
+                    sessionId, message, chatId, userId, agentId, serversCsv);
             
             return AjaxResult.success("消息发送成功，请通过SSE接收响应", messageId);
         } catch (Exception e) {

@@ -160,13 +160,14 @@ public class LLMServiceImpl {
             ConcurrentHashMap<String, SseEmitter> sseEmitters,
             Long chatId,
             Long userId,
-            IChatMessageService chatMessageService) {
+            IChatMessageService chatMessageService,
+            String serversCsv) {
 
         Agent agent = fixedAgentProperties.toAgent();
         agentThreadLocal.set(agent);
 
         try {
-            sendMessageToLLMWithSSE(messages, messageSend, true, sessionId, messageId, sseEmitters, chatId, userId, chatMessageService);
+            sendMessageToLLMWithSSE(messages, messageSend, true, sessionId, messageId, sseEmitters, chatId, userId, chatMessageService, serversCsv);
         } catch (Exception e) {
             log.error("Exception occurred in sendMessageToLLMAsyncWithSSE: {}", e.getMessage(), e);
 
@@ -182,7 +183,7 @@ public class LLMServiceImpl {
         }
     }
 
-    private JsonObject createRequestBody(List<ChatMessage> messages, ChatMessage messageSend) {
+    private JsonObject createRequestBody(List<ChatMessage> messages, ChatMessage messageSend, String serversCsv) {
         JsonObject requestBodyJson = new JsonObject();
         Agent agent = agentThreadLocal.get();
 
@@ -198,9 +199,18 @@ public class LLMServiceImpl {
         JsonArray messageArr = new JsonArray();
 
         String systemPrompt = agent.getSystemPrompt();
-        // 构造 MCP 工具调用提示词并加入 systemPrompt
+        // 构造 MCP 工具调用提示词并加入 systemPrompt（支持服务器过滤）
         try {
-            String toolsPrompt = mcpSystemPromptBuilder.buildSystemPromptWithMCPTools();
+            String toolsPrompt;
+            if (serversCsv != null && !serversCsv.isBlank()) {
+                List<String> serverNames = Arrays.stream(serversCsv.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList();
+                toolsPrompt = mcpSystemPromptBuilder.buildSystemPromptForServers(serverNames);
+            } else {
+                toolsPrompt = mcpSystemPromptBuilder.buildSystemPromptWithMCPTools();
+            }
             if (toolsPrompt != null && !toolsPrompt.isEmpty()) {
                 systemPrompt = (systemPrompt == null || systemPrompt.isEmpty())
                         ? toolsPrompt
@@ -229,6 +239,11 @@ public class LLMServiceImpl {
         requestBodyJson.add("messages", messageArr);
         log.info("请求参数构建完成, {} - {}", agent.getLlmSupplier(), agent.getModel());
         return requestBodyJson;
+    }
+
+    // 兼容旧调用
+    private JsonObject createRequestBody(List<ChatMessage> messages, ChatMessage messageSend) {
+        return createRequestBody(messages, messageSend, null);
     }
 
     private JsonObject createMessageJson(ChatMessage message) {
@@ -260,7 +275,7 @@ public class LLMServiceImpl {
 
     public LLMResponseDto sendMessageToLLM(List<ChatMessage> messages, ChatMessage messageSend, Boolean stream) {
         LLMResponseDto llmResponse = new LLMResponseDto();
-        requestBodyJsonThreadLocal.set(createRequestBody(messages, messageSend));
+        requestBodyJsonThreadLocal.set(createRequestBody(messages, messageSend, null));
 
         try {
             requestBodyJsonThreadLocal.get().addProperty("stream", Boolean.TRUE.equals(stream));
@@ -315,9 +330,10 @@ public class LLMServiceImpl {
             ConcurrentHashMap<String, SseEmitter> sseEmitters,
             Long chatId,
             Long userId,
-            IChatMessageService chatMessageService) {
+            IChatMessageService chatMessageService,
+            String serversCsv) {
 
-        requestBodyJsonThreadLocal.set(createRequestBody(messages, messageSend));
+        requestBodyJsonThreadLocal.set(createRequestBody(messages, messageSend, serversCsv));
 
         try {
             while (true) {

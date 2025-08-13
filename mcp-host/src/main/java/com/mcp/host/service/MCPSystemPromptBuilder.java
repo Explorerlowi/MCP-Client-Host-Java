@@ -35,5 +35,10 @@ public interface MCPSystemPromptBuilder {
      */
     List<MCPToolInfo> getToolsForServer(String serverName);
     
+    /**
+     * 构建指定服务器集合的系统提示
+     */
+    String buildSystemPromptForServers(List<String> serverNames);
+
 
 }

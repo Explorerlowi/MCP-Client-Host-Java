@@ -48,9 +48,12 @@ public class MCPSseClient extends AbstractMCPClient {
     // 心跳检测相关
     private volatile ScheduledExecutorService heartbeatExecutor; // 非final，允许重新创建
     private volatile long lastHeartbeatTime = 0; // 上次心跳时间
+    private volatile long lastSystemTime = 0; // 上次系统时间，用于检测休眠恢复
+    private volatile long suppressSleepDetectionUntil = 0; // 休眠检测抑制截止时间
     private volatile boolean heartbeatEnabled = true; // 是否启用心跳检测
     private static final long HEARTBEAT_INTERVAL_MS = 60000; // 心跳间隔60秒
     private static final long HEARTBEAT_TIMEOUT_MS = 15000; // 心跳超时15秒
+    private static final long SLEEP_DETECTION_THRESHOLD_MS = 180000; // 休眠检测阈值3分钟
     
     public MCPSseClient(McpServerSpec spec) {
         super(spec);
@@ -60,6 +63,11 @@ public class MCPSseClient extends AbstractMCPClient {
                 .defaultHeader("Cache-Control", "no-cache")
                 .build();
 
+        // 初始化时间记录
+        long currentTime = System.currentTimeMillis();
+        lastHeartbeatTime = currentTime;
+        lastSystemTime = currentTime;
+        
         // 初始化心跳线程池
         createHeartbeatExecutor();
         
@@ -208,6 +216,11 @@ public class MCPSseClient extends AbstractMCPClient {
                 CompletableFuture.runAsync(() -> {
                     try {
                         performHandshake();
+                        // 握手成功后重置时间戳并设置短暂抑制，避免误判为休眠恢复
+                        long now = System.currentTimeMillis();
+                        lastSystemTime = now;
+                        lastHeartbeatTime = now;
+                        suppressSleepDetectionUntil = now + 10_000L; // 抑制10秒
                         // 握手成功后，标记连接完全就绪
                         connectionReadyFuture.complete(null);
                         log.info("MCP SSE 连接完全就绪: {}", spec.getId());
@@ -240,6 +253,11 @@ public class MCPSseClient extends AbstractMCPClient {
             CompletableFuture.runAsync(() -> {
                 try {
                     performHandshake();
+                    // 握手成功后重置时间戳并设置短暂抑制，避免误判为休眠恢复
+                    long now = System.currentTimeMillis();
+                    lastSystemTime = now;
+                    lastHeartbeatTime = now;
+                    suppressSleepDetectionUntil = now + 10_000L; // 抑制10秒
                     // 握手成功后，标记连接完全就绪
                     connectionReadyFuture.complete(null);
                     log.info("MCP SSE 连接完全就绪: {}", spec.getId());
@@ -329,6 +347,11 @@ public class MCPSseClient extends AbstractMCPClient {
                         initializeConnectionInternal();
 
                         if (connected.get()) {
+                            // 重连成功后先重置时间戳并设置短暂抑制，然后再启动心跳
+                            long now = System.currentTimeMillis();
+                            lastSystemTime = now;
+                            lastHeartbeatTime = now;
+                            suppressSleepDetectionUntil = now + 10_000L; // 抑制10秒
                             log.info("SSE 重新连接成功 [{}]", spec.getId());
                             reconnectAttempts = 0; // 重置重连计数
                             // 重新启动心跳检测
@@ -419,8 +442,18 @@ public class MCPSseClient extends AbstractMCPClient {
         }
         
         try {
-            // 更新心跳时间
-            lastHeartbeatTime = System.currentTimeMillis();
+            long currentTime = System.currentTimeMillis();
+            
+            // 检测是否从休眠中恢复
+            if (detectSystemSleepResume(currentTime)) {
+                log.warn("检测到系统休眠恢复，强制重连SSE连接 [{}]", spec.getId());
+                handleSleepResume();
+                return;
+            }
+            
+            // 更新时间记录
+            lastHeartbeatTime = currentTime;
+            lastSystemTime = currentTime;
             
             // 发送一个轻量级的ping请求来检测连接
             if (messageEndpointUri != null) {
@@ -432,6 +465,68 @@ public class MCPSseClient extends AbstractMCPClient {
             log.warn("心跳检测执行异常 [{}]: {}", spec.getId(), e.getMessage());
             handleHeartbeatError(e);
         }
+    }
+    
+    /**
+     * 检测系统是否从休眠中恢复
+     */
+    private boolean detectSystemSleepResume(long currentTime) {
+        // 抑制窗口内不进行休眠检测，避免刚恢复后重复触发
+        if (currentTime < suppressSleepDetectionUntil) {
+            return false;
+        }
+        if (lastSystemTime == 0) {
+            // 第一次执行，初始化时间
+            lastSystemTime = currentTime;
+            return false;
+        }
+        
+        long timeDiff = currentTime - lastSystemTime;
+        
+        // 如果时间差超过阈值（比心跳间隔大很多），可能是休眠恢复
+        if (timeDiff > SLEEP_DETECTION_THRESHOLD_MS) {
+            log.info("检测到可能的系统休眠恢复，时间跳跃: {}ms [{}]", timeDiff, spec.getId());
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 处理系统休眠恢复
+     */
+    private void handleSleepResume() {
+        log.info("处理系统休眠恢复，重置SSE连接 [{}]", spec.getId());
+        
+        // 标记连接断开
+        connected.set(false);
+
+        // 设置短暂抑制窗口，避免后续检测重复触发
+        long now = System.currentTimeMillis();
+        suppressSleepDetectionUntil = now + 10_000L; // 抑制10秒
+        
+        // 清理待处理的请求
+        pendingRequests.values().forEach(future ->
+            future.completeExceptionally(new McpConnectionException("检测到系统休眠恢复，连接已重置")));
+        pendingRequests.clear();
+        
+        // 重置连接就绪状态
+        if (!connectionReadyFuture.isDone()) {
+            connectionReadyFuture.completeExceptionally(new McpConnectionException("系统休眠恢复，连接已重置"));
+        }
+        
+        // 异步重连，避免阻塞心跳线程
+        CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(2000); // 等待2秒再重连，给系统恢复时间
+                if (shouldReconnect && !isReconnecting) {
+                    attemptReconnection();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("休眠恢复重连被中断 [{}]", spec.getId());
+            }
+        });
     }
     
     /**
@@ -821,6 +916,11 @@ public class MCPSseClient extends AbstractMCPClient {
         reconnectAttempts = 0; // 重置重连计数
         isReconnecting = false; // 重置重连状态
 
+        // 重置时间记录
+        long currentTime = System.currentTimeMillis();
+        lastHeartbeatTime = currentTime;
+        lastSystemTime = currentTime;
+
         // 重置连接就绪状态
         if (connectionReadyFuture.isDone()) {
             connectionReadyFuture = new CompletableFuture<>();
@@ -881,9 +981,18 @@ public class MCPSseClient extends AbstractMCPClient {
             return false;
         }
         
+        long currentTime = System.currentTimeMillis();
+        
+        // 检测系统休眠恢复
+        if (lastSystemTime > 0 && (currentTime - lastSystemTime) > SLEEP_DETECTION_THRESHOLD_MS) {
+            log.warn("isConnected检测到系统休眠恢复，时间跳跃 {}ms [{}]", 
+                    currentTime - lastSystemTime, spec.getId());
+            return false;
+        }
+        
         // 检查心跳是否正常（如果启用了心跳检测）
         if (heartbeatEnabled && lastHeartbeatTime > 0) {
-            long timeSinceLastHeartbeat = System.currentTimeMillis() - lastHeartbeatTime;
+            long timeSinceLastHeartbeat = currentTime - lastHeartbeatTime;
             if (timeSinceLastHeartbeat > HEARTBEAT_INTERVAL_MS * 3) {
                 log.warn("心跳检测异常，距离上次心跳已超过 {}ms [{}]", timeSinceLastHeartbeat, spec.getId());
                 return false;

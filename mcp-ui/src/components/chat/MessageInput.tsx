@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Textarea } from '../ui/textarea'
 import { Button } from '../ui/button'
 import { Send, Square } from 'lucide-react'
+import { ServerApiService } from '../../services/serverApi'
+import type { McpServerSpec, MCPServerHealth } from '../../types/server'
 
 interface MessageInputProps {
   onSendMessage: (message: string) => void;
@@ -19,6 +21,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const DRAFT_KEY = 'mcp_chat_input_draft';
+  const SELECTED_SERVERS_KEY = 'mcp_selected_servers';
+
+  // 工具（服务器）选择相关状态
+  const [showPicker, setShowPicker] = useState(false);
+  const [servers, setServers] = useState<McpServerSpec[]>([]);
+  const [healthList, setHealthList] = useState<MCPServerHealth[]>([]);
+  const [selectedServers, setSelectedServers] = useState<string[]>([]);
 
   // 自动调整文本框高度
   const adjustTextareaHeight = () => {
@@ -40,6 +49,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
       if (saved) {
         setMessage(saved);
       }
+      const savedServers = localStorage.getItem(SELECTED_SERVERS_KEY);
+      if (savedServers) {
+        setSelectedServers(savedServers.split(',').filter(Boolean));
+      }
     } catch (err) {
       // 忽略本地存储异常
     }
@@ -54,6 +67,22 @@ const MessageInput: React.FC<MessageInputProps> = ({
       // 忽略本地存储异常
     }
   }, [message]);
+
+  // 加载服务器与健康状态，仅显示在线的服务器供选择
+  useEffect(() => {
+    (async () => {
+      try {
+        const [list, health] = await Promise.all([
+          ServerApiService.getAllServers(),
+          ServerApiService.getAllServerHealth()
+        ]);
+        setServers(list);
+        setHealthList(health);
+      } catch (e) {
+        // 忽略加载失败，不影响聊天
+      }
+    })();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +111,30 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
+  };
+
+  const onlineServerIds = healthList.filter(h => h.connected).map(h => h.serverId);
+  const displayServers = servers.filter(s => onlineServerIds.includes(s.id));
+
+  const toggleServer = (id: string) => {
+    setSelectedServers(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      try {
+        localStorage.setItem(SELECTED_SERVERS_KEY, next.join(','));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    const all = displayServers.map(s => s.id);
+    setSelectedServers(all);
+    try { localStorage.setItem(SELECTED_SERVERS_KEY, all.join(',')); } catch {}
+  };
+
+  const handleClearAll = () => {
+    setSelectedServers([]);
+    try { localStorage.setItem(SELECTED_SERVERS_KEY, ''); } catch {}
   };
 
   return (
@@ -149,6 +202,50 @@ const MessageInput: React.FC<MessageInputProps> = ({
             <div className="w-1 h-4 bg-gradient-to-t from-cyan-400 to-emerald-400 rounded-full opacity-60"></div>
           </div>
         </div>
+
+        {/* 工具（服务器）选择按钮与面板 */}
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-cyan-400/60">
+            已选择服务器: {selectedServers.length} / {displayServers.length}
+          </div>
+          <div className="space-x-2">
+            <Button
+              type="button"
+              className="bg-slate-800/60 hover:bg-slate-800/80 border border-cyan-400/40 text-cyan-300"
+              onClick={() => setShowPicker(v => !v)}
+            >
+              {showPicker ? '收起工具选择' : '选择MCP工具'}
+            </Button>
+          </div>
+        </div>
+
+        {showPicker && (
+          <div className="mt-2 p-3 rounded-md border border-cyan-400/30 bg-slate-900/40">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-cyan-300">在线服务器</div>
+              <div className="space-x-2">
+                <Button type="button" className="h-7 px-2 text-xs" onClick={handleSelectAll}>全选</Button>
+                <Button type="button" className="h-7 px-2 text-xs" onClick={handleClearAll}>清空</Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-auto pr-1">
+              {displayServers.length === 0 && (
+                <div className="text-xs text-cyan-400/60">暂无在线服务器</div>
+              )}
+              {displayServers.map(s => (
+                <label key={s.id} className="flex items-center space-x-2 text-sm text-cyan-100/90">
+                  <input
+                    type="checkbox"
+                    className="accent-emerald-400"
+                    checked={selectedServers.includes(s.id)}
+                    onChange={() => toggleServer(s.id)}
+                  />
+                  <span>{s.name || s.id}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </form>
     </div>
   );

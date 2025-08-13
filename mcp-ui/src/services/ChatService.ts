@@ -198,7 +198,7 @@ export default class ChatService {
       this.messages.push(assistantMsg)
       this.emit('messagesChanged', this.getMessages())
 
-      // 5) POST /send
+      // 5) POST /send（附带所选服务器列表）
       const url = `${this.baseUrl}/chat2Agent/send`
       const body = new URLSearchParams({
         sessionId: this.sessionId || '',
@@ -207,6 +207,14 @@ export default class ChatService {
         userId: String(this.userId),
         agentId: String(this.agentId)
       })
+
+      // 从 localStorage 读取服务器选择并附加
+      try {
+        const saved = localStorage.getItem('mcp_selected_servers') || ''
+        if (saved) {
+          body.append('servers', saved)
+        }
+      } catch {}
 
       const res = await fetch(url, {
         method: 'POST',

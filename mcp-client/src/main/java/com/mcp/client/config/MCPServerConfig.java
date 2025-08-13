@@ -1,5 +1,6 @@
 package com.mcp.client.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +23,7 @@ public class MCPServerConfig {
     private Map<String, ServerConfig> mcpServers;
     
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ServerConfig {
         private String command;
         private String[] args;

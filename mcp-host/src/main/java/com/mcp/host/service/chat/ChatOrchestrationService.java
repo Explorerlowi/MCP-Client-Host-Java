@@ -47,7 +47,7 @@ public class ChatOrchestrationService {
     /**
      * 处理用户消息
      */
-    public Long processMessage(String sessionId, String message, Long chatId, Long userId, Long agentId) {
+    public Long processMessage(String sessionId, String message, Long chatId, Long userId, Long agentId, String serversCsv) {
         log.info("开始处理消息: sessionId={}, chatId={}, userId={}, agentId={}", 
                 sessionId, chatId, userId, agentId);
 
@@ -66,7 +66,7 @@ public class ChatOrchestrationService {
             
             // 5. 创建并启动生成任务
             CompletableFuture<Void> generationTask = createGenerationTask(
-                    contextMessages, userMessage, sessionId, messageId, chatId, userId, agentId);
+                    contextMessages, userMessage, sessionId, messageId, chatId, userId, agentId, serversCsv);
             
             // 6. 注册任务管理
             taskManagementService.registerTask(sessionId, chatId, userId, generationTask);
@@ -118,14 +118,15 @@ public class ChatOrchestrationService {
                                                         String messageId, 
                                                         Long chatId, 
                                                         Long userId, 
-                                                        Long agentId) {
+                                                         Long agentId,
+                                                         String serversCsv) {
         
         return CompletableFuture.runAsync(() -> {
             try {
                 // 直接调用LLM服务
                 llmService.sendMessageToLLMAsyncWithSSE(
                         contextMessages, agentId, userMessage, sessionId, messageId,
-                        sseConnectionService.getSseEmitters(), chatId, userId, chatMessageService);
+                        sseConnectionService.getSseEmitters(), chatId, userId, chatMessageService, serversCsv);
             } catch (Exception e) {
                 log.error("处理失败: agentId={}, sessionId={}, chatId={}, userId={}", 
                         agentId, sessionId, chatId, userId, e);
