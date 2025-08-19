@@ -79,24 +79,37 @@ public abstract class AbstractMCPClient implements MCPClient {
             arguments.forEach((key, value) -> {
                 // 尝试解析参数值的实际类型
                 if (value != null) {
-                    // 尝试解析为数字
-                    try {
-                        if (value.contains(".")) {
-                            // 浮点数
-                            double doubleValue = Double.parseDouble(value);
-                            argsNode.put(key, doubleValue);
-                        } else {
-                            // 整数
-                            long longValue = Long.parseLong(value);
-                            argsNode.put(key, longValue);
-                        }
-                    } catch (NumberFormatException e) {
-                        // 尝试解析为布尔值
-                        if ("true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value)) {
-                            argsNode.put(key, Boolean.parseBoolean(value));
-                        } else {
-                            // 默认作为字符串
+                    // 首先检查是否为JSON数组或对象字符串
+                    if ((value.startsWith("[") && value.endsWith("]")) || 
+                        (value.startsWith("{") && value.endsWith("}"))) {
+                        try {
+                            // 尝试解析为JSON节点
+                            JsonNode jsonNode = objectMapper.readTree(value);
+                            argsNode.set(key, jsonNode);
+                        } catch (Exception e) {
+                            // 如果解析失败，作为字符串处理
                             argsNode.put(key, value);
+                        }
+                    } else {
+                        // 尝试解析为数字
+                        try {
+                            if (value.contains(".")) {
+                                // 浮点数
+                                double doubleValue = Double.parseDouble(value);
+                                argsNode.put(key, doubleValue);
+                            } else {
+                                // 整数
+                                long longValue = Long.parseLong(value);
+                                argsNode.put(key, longValue);
+                            }
+                        } catch (NumberFormatException e) {
+                            // 尝试解析为布尔值
+                            if ("true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value)) {
+                                argsNode.put(key, Boolean.parseBoolean(value));
+                            } else {
+                                // 默认作为字符串
+                                argsNode.put(key, value);
+                            }
                         }
                     }
                 } else {

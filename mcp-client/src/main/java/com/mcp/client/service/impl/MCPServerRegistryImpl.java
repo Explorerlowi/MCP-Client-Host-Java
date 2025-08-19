@@ -64,8 +64,12 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
             try {
                 MCPClient client = buildClient(spec);
                 clients.put(spec.getId(), client);
+                // 记录连接成功
+                retryManager.recordSuccess(spec.getId());
             } catch (Exception e) {
                 log.warn("创建 MCP 客户端连接失败: {}, 将在后续调用时重试", spec.getId());
+                // 记录连接失败
+                retryManager.recordFailure(spec.getId());
                 // 不抛出异常，允许延迟连接
             }
         } else {
@@ -114,10 +118,28 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                     // 创建新连接
                     try {
                         MCPClient newClient = buildClient(spec);
+                        // 记录连接成功
+                        retryManager.recordSuccess(k);
                         log.info("成功创建 MCP 客户端连接: {}", k);
                         return newClient;
                     } catch (Exception e) {
+                        // 记录连接失败
+                        retryManager.recordFailure(k);
                         log.error("创建 MCP 客户端连接失败: {}", k, e);
+
+                        // 检查是否应该禁用服务器
+                        ConnectionRetryManager.FailureInfo failureInfo = retryManager.getFailureInfo(k);
+                        if (failureInfo != null && failureInfo.shouldGiveUp()) {
+                            log.warn("服务器 {} 注册时连续失败 {} 次，自动禁用服务器", k, failureInfo.getFailureCount());
+                            // 更新spec为禁用状态，但不调用disableServerAfterFailure避免递归
+                            spec.setDisabled(true);
+                            repository.save(spec);
+                            specs.put(k, spec);
+                            retryManager.clearFailureInfo(k);
+                            log.info("服务器 {} 已自动禁用", k);
+                            return null; // 返回null表示连接失败但已处理
+                        }
+
                         throw new McpException("创建客户端连接失败: " + e.getMessage(), e);
                     }
                 });
@@ -261,6 +283,14 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                 // 记录连接失败
                 retryManager.recordFailure(serverId);
                 log.error("创建 MCP 客户端连接失败: {}", serverId, e);
+
+                // 检查是否应该禁用服务器
+                ConnectionRetryManager.FailureInfo failureInfo = retryManager.getFailureInfo(serverId);
+                if (failureInfo != null && failureInfo.shouldGiveUp()) {
+                    log.warn("服务器 {} 连续失败 {} 次，自动禁用服务器", serverId, failureInfo.getFailureCount());
+                    disableServerAfterFailure(serverId);
+                }
+
                 throw new McpException("获取客户端失败: " + e.getMessage(), e);
             }
         }
@@ -451,10 +481,69 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
         try {
             MCPClient newClient = buildClient(spec);
             clients.put(serverId, newClient);
+
+            // 记录连接成功，重置失败计数
+            retryManager.recordSuccess(serverId);
             log.info("重新连接 MCP 服务器成功: {}", serverId);
         } catch (Exception e) {
+            // 记录连接失败
+            retryManager.recordFailure(serverId);
             log.error("重新连接 MCP 服务器失败: {}", serverId, e);
+
+            // 检查是否应该禁用服务器
+            ConnectionRetryManager.FailureInfo failureInfo = retryManager.getFailureInfo(serverId);
+            if (failureInfo != null && failureInfo.shouldGiveUp()) {
+                log.warn("服务器 {} 重连连续失败 {} 次，自动禁用服务器", serverId, failureInfo.getFailureCount());
+                disableServerAfterFailure(serverId);
+            }
+
             throw new McpException("重新连接失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 连接失败后禁用服务器
+     */
+    private void disableServerAfterFailure(String serverId) {
+        try {
+            McpServerSpec spec = specs.get(serverId);
+            if (spec == null) {
+                log.warn("无法禁用服务器，配置未找到: {}", serverId);
+                return;
+            }
+
+            // 更新内存中的配置
+            spec.setDisabled(true);
+            specs.put(serverId, spec);
+
+            // 更新数据库中的配置
+            repository.save(spec);
+            log.info("已在数据库中禁用服务器: {}", serverId);
+
+            // 关闭现有连接
+            MCPClient client = clients.remove(serverId);
+            if (client != null) {
+                try {
+                    client.close();
+                    log.debug("已关闭失败服务器的客户端连接: {}", serverId);
+                } catch (Exception e) {
+                    log.warn("关闭失败服务器连接时发生错误: {}", serverId, e);
+                }
+            }
+
+            // 保存配置到文件
+            try {
+                configurationService.saveConfigurationToDefaultFile();
+                log.info("已将禁用状态保存到配置文件: {}", serverId);
+            } catch (Exception e) {
+                log.warn("保存配置文件失败，但服务器已在数据库中禁用: {} - {}", serverId, e.getMessage());
+            }
+
+            // 清除失败信息，避免继续累积
+            retryManager.clearFailureInfo(serverId);
+
+        } catch (Exception e) {
+            log.error("禁用失败服务器时发生错误: {}", serverId, e);
         }
     }
 }

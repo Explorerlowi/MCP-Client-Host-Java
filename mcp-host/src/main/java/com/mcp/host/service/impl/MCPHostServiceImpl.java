@@ -39,25 +39,35 @@ public class MCPHostServiceImpl implements MCPHostService {
             log.debug("没有 MCP 指令需要处理");
             return originalResponse;
         }
-        
+
         log.info("开始处理 {} 个 MCP 指令", instructions.size());
-        String processedResponse = originalResponse;
-        
-        for (MCPInstruction instruction : instructions) {
+        StringBuilder processedResponse = new StringBuilder(originalResponse);
+
+        // 如果原始响应不为空，添加分隔符
+        if (originalResponse != null && !originalResponse.trim().isEmpty()) {
+            processedResponse.append("\n\n---\n\n");
+        }
+
+        for (int i = 0; i < instructions.size(); i++) {
+            MCPInstruction instruction = instructions.get(i);
             try {
-                log.debug("执行 MCP 指令: {}", instruction);
-                
+                log.debug("执行 MCP 指令 {}/{}: {}", i + 1, instructions.size(), instruction);
+
                 // 执行 MCP 工具调用
                 MCPToolResult result = executeMCPTool(instruction);
-                
-                // 替换原始响应中的 JSON 指令为实际结果
-                processedResponse = formatToolResult(result);
-                
-                log.debug("MCP 指令执行完成: {} -> {}", instruction.getToolName(), result.isSuccess());
-                
+
+                // 累积工具结果，而不是覆盖
+                if (i > 0) {
+                    processedResponse.append("\n\n---\n\n");
+                }
+                processedResponse.append(formatToolResult(result));
+
+                log.debug("MCP 指令执行完成 {}/{}: {} -> {}",
+                         i + 1, instructions.size(), instruction.getToolName(), result.isSuccess());
+
             } catch (Exception e) {
-                log.error("执行 MCP 工具失败: {}", instruction, e);
-                
+                log.error("执行 MCP 工具失败 {}/{}: {}", i + 1, instructions.size(), instruction, e);
+
                 // 创建错误结果
                 MCPToolResult errorResult = MCPToolResult.builder()
                         .success(false)
@@ -66,14 +76,17 @@ public class MCPHostServiceImpl implements MCPHostService {
                         .serverName(instruction.getServerName())
                         .timestamp(Instant.now())
                         .build();
-                
-                // 替换为错误信息
-                processedResponse = formatToolResult(errorResult);
+
+                // 累积错误信息，而不是覆盖
+                if (i > 0) {
+                    processedResponse.append("\n\n---\n\n");
+                }
+                processedResponse.append(formatToolResult(errorResult));
             }
         }
-        
+
         log.info("MCP 指令处理完成，共处理 {} 个指令", instructions.size());
-        return processedResponse;
+        return processedResponse.toString();
     }
     
     @Override

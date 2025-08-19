@@ -11,6 +11,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import reactor.core.publisher.Flux;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 
 import java.time.Duration;
 import java.util.List;
@@ -29,6 +33,16 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
     private Flux<String> eventStream;
     private volatile long lastEventId = 0;
     private volatile boolean supportsResume = false;
+    // 保活与休眠检测
+    private volatile ScheduledExecutorService heartbeatExecutor;
+    private volatile boolean heartbeatEnabled = true;
+    private volatile long lastHeartbeatTime = 0;
+    private volatile long lastSystemTime = 0;
+    private volatile long suppressSleepDetectionUntil = 0;
+    private volatile boolean isReconnecting = false;
+    private static final long HEARTBEAT_INTERVAL_MS = 60000; // 60秒
+    private static final long HEARTBEAT_TIMEOUT_MS = 15000; // 15秒
+    private static final long SLEEP_DETECTION_THRESHOLD_MS = 180000; // 3分钟
     
     public MCPStreamableHttpClient(McpServerSpec spec) {
         super(spec);
@@ -39,7 +53,14 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
                 .defaultHeader("User-Agent", "mcp-java-client/1.0.0")
                 .build();
 
+        // 初始化时间记录与心跳
+        long now = System.currentTimeMillis();
+        lastHeartbeatTime = now;
+        lastSystemTime = now;
+        createHeartbeatExecutor();
+
         establishConnection();
+        startHeartbeat();
     }
     
     /**
@@ -118,6 +139,11 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
             
             connected.set(true);
             log.info("MCP Streamable HTTP 客户端初始化成功: {}", spec.getId());
+            // 握手成功后重置时间戳并设置短暂抑制
+            long nowAfter = System.currentTimeMillis();
+            lastSystemTime = nowAfter;
+            lastHeartbeatTime = nowAfter;
+            suppressSleepDetectionUntil = nowAfter + 10_000L; // 抑制10秒
             
         } catch (Exception e) {
             log.error("初始化 MCP Streamable HTTP 客户端失败: {}", spec.getId(), e);
@@ -218,6 +244,128 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
         log.error("Streamable HTTP 连接错误 [{}]: {}", spec.getId(), error.getMessage());
         connected.set(false);
     }
+
+    // ---------- 心跳与休眠检测 ----------
+    private void createHeartbeatExecutor() {
+        this.heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "HTTP-Heartbeat-" + spec.getId());
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
+    private void startHeartbeat() {
+        if (!heartbeatEnabled) return;
+        heartbeatExecutor.scheduleWithFixedDelay(this::performHeartbeat,
+                HEARTBEAT_INTERVAL_MS, HEARTBEAT_INTERVAL_MS, TimeUnit.MILLISECONDS);
+        log.debug("启动HTTP心跳检测 [{}], 间隔: {}ms", spec.getId(), HEARTBEAT_INTERVAL_MS);
+    }
+
+    private void performHeartbeat() {
+        if (!heartbeatEnabled || !connected.get()) return;
+        try {
+            long currentTime = System.currentTimeMillis();
+            if (detectSystemSleepResume(currentTime)) {
+                log.warn("检测到系统休眠恢复，强制重连HTTP连接 [{}]", spec.getId());
+                handleSleepResume();
+                return;
+            }
+            lastHeartbeatTime = currentTime;
+            lastSystemTime = currentTime;
+            // 使用 tools/list 进行轻量心跳
+            JsonNode ping = buildListToolsRequest();
+            sendHeartbeatRequest(ping);
+        } catch (Exception e) {
+            log.warn("心跳检测执行异常 [{}]: {}", spec.getId(), e.getMessage());
+            handleHeartbeatError(e);
+        }
+    }
+
+    private void sendHeartbeatRequest(JsonNode request) {
+        try {
+            WebClient.RequestBodySpec requestSpec = webClient.post()
+                    .uri(calculateRequestUri())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Accept", "application/json");
+            if (sessionId != null) {
+                requestSpec = requestSpec.header("Mcp-Session-Id", sessionId);
+            }
+            requestSpec
+                    .bodyValue(request.toString())
+                    .retrieve()
+                    .toBodilessEntity()
+                    .timeout(Duration.ofMillis(HEARTBEAT_TIMEOUT_MS))
+                    .doOnSuccess(resp -> log.debug("心跳检测请求发送成功 [{}]", spec.getId()))
+                    .doOnError(this::handleHeartbeatError)
+                    .subscribe();
+        } catch (Exception e) {
+            log.warn("发送心跳检测请求失败 [{}]: {}", spec.getId(), e.getMessage());
+            handleHeartbeatError(e);
+        }
+    }
+
+    private void handleHeartbeatError(Throwable error) {
+        log.warn("心跳检测失败 [{}]: {}, 尝试重连", spec.getId(), error.getMessage());
+        connected.set(false);
+        if (!isReconnecting) {
+            isReconnecting = true;
+            CompletableFuture.runAsync(() -> {
+                try {
+                    reconnect(true);
+                } catch (Exception ignored) {
+                } finally {
+                    isReconnecting = false;
+                }
+            });
+        }
+    }
+
+    private void stopHeartbeat() {
+        heartbeatEnabled = false;
+        if (heartbeatExecutor != null && !heartbeatExecutor.isShutdown()) {
+            heartbeatExecutor.shutdown();
+            try {
+                if (!heartbeatExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    heartbeatExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                heartbeatExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        log.debug("停止HTTP心跳检测 [{}]", spec.getId());
+    }
+
+    private boolean detectSystemSleepResume(long currentTime) {
+        if (currentTime < suppressSleepDetectionUntil) return false;
+        if (lastSystemTime == 0) { lastSystemTime = currentTime; return false; }
+        long diff = currentTime - lastSystemTime;
+        if (diff > SLEEP_DETECTION_THRESHOLD_MS) {
+            log.info("检测到可能的系统休眠恢复，时间跳跃: {}ms [{}]", diff, spec.getId());
+            return true;
+        }
+        return false;
+    }
+
+    private void handleSleepResume() {
+        log.info("处理系统休眠恢复，重置HTTP连接 [{}]", spec.getId());
+        connected.set(false);
+        long now = System.currentTimeMillis();
+        suppressSleepDetectionUntil = now + 10_000L; // 抑制10秒
+        if (!isReconnecting) {
+            isReconnecting = true;
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(2000);
+                    reconnect(true);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    isReconnecting = false;
+                }
+            });
+        }
+    }
     
     @Override
     protected void performHandshake() throws McpConnectionException {
@@ -246,6 +394,11 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
             }
 
             log.debug("MCP Streamable HTTP 握手协议完成: {}", spec.getId());
+            // 握手成功后重置时间戳并设置短暂抑制
+            long now = System.currentTimeMillis();
+            lastSystemTime = now;
+            lastHeartbeatTime = now;
+            suppressSleepDetectionUntil = now + 10_000L; // 抑制10秒
 
         } catch (Exception e) {
             log.error("MCP Streamable HTTP 握手协议失败: {}", spec.getId(), e);
@@ -445,6 +598,8 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
 
         log.info("断开 MCP Streamable HTTP 客户端连接: {}", spec.getId());
         connected.set(false);
+        // 停止心跳
+        stopHeartbeat();
 
         try {
             // 对于简化的 Streamable HTTP 实现，可能不需要特殊的暂停端点
@@ -462,14 +617,28 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
 
     @Override
     public boolean isConnected() {
-        // 对于仅支持 POST 的服务器，只要握手成功就认为连接正常
-        return connected.get();
+        if (!connected.get()) return false;
+        long currentTime = System.currentTimeMillis();
+        if (lastSystemTime > 0 && (currentTime - lastSystemTime) > SLEEP_DETECTION_THRESHOLD_MS) {
+            log.warn("isConnected检测到系统休眠恢复，时间跳跃 {}ms [{}]", currentTime - lastSystemTime, spec.getId());
+            return false;
+        }
+        if (heartbeatEnabled && lastHeartbeatTime > 0) {
+            long since = currentTime - lastHeartbeatTime;
+            if (since > HEARTBEAT_INTERVAL_MS * 3) {
+                log.warn("心跳检测异常，距离上次心跳已超过 {}ms [{}]", since, spec.getId());
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
     public void close() {
         log.info("关闭 MCP Streamable HTTP 客户端: {}", spec.getId());
         connected.set(false);
+        // 停止心跳
+        stopHeartbeat();
 
         try {
             // 对于简化的 Streamable HTTP 实现，可能不需要特殊的会话结束请求

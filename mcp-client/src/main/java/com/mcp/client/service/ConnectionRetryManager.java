@@ -15,6 +15,11 @@ import java.util.concurrent.ConcurrentMap;
 @Slf4j
 @Component
 public class ConnectionRetryManager {
+
+    /**
+     * 最大失败次数，超过此次数将被标记为应该放弃
+     */
+    private static final int MAX_FAILURE_COUNT = 5;
     
     /**
      * 连接失败信息
@@ -52,8 +57,8 @@ public class ConnectionRetryManager {
         }
         
         public boolean shouldGiveUp() {
-            // 连续失败10次后暂时放弃
-            return failureCount >= 10;
+            // 连续失败达到最大次数后暂时放弃
+            return failureCount >= MAX_FAILURE_COUNT;
         }
     }
     
@@ -69,7 +74,8 @@ public class ConnectionRetryManager {
         }
         
         if (info.shouldGiveUp()) {
-            log.warn("服务器 {} 连续失败 {} 次，暂时放弃重试", serverId, info.getFailureCount());
+            log.warn("服务器 {} 连续失败 {} 次（达到最大失败次数 {}），暂时放弃重试",
+                    serverId, info.getFailureCount(), MAX_FAILURE_COUNT);
             return false;
         }
         

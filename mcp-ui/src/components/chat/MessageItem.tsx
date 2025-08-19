@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage } from '../../types/chat';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '../ui/badge'
 import ToolResultDisplay from './ToolResultDisplay';
 import MarkdownRenderer from './MarkdownRenderer';
+import CopyButton from './CopyButton';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -161,6 +162,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, groupMessages }) => 
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* 复制按钮 - 只在最后一个气泡的左下角显示，且仅对assistant消息 */}
+        {isLast && message.role === 'assistant' && (
+          <div className="absolute bottom-2 -left-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <CopyButton messages={messagesToRender} />
           </div>
         )}
 
