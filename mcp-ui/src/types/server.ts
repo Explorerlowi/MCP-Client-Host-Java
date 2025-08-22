@@ -10,12 +10,13 @@ export interface McpServerSpec {
   id: string;
   name?: string;
   description?: string;
-  transport: TransportType;
+  type: TransportType;
   url?: string;
   command?: string;
   args?: string[];
   env?: Record<string, string>;
   disabled: boolean;
+  timeout?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -43,7 +44,7 @@ export interface ServerFormData {
   id: string;
   name: string;
   description: string;
-  transport: TransportType;
+  type: TransportType;
   url: string;
   command: string;
   args: string;

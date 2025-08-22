@@ -22,8 +22,7 @@ public class DatabaseConfig {
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         log.info("MCP Client 数据库初始化完成");
-        log.info("H2 控制台访问地址: http://localhost:8086/h2-console");
-        log.info("数据库连接 URL: jdbc:h2:mem:mcpclient");
-        log.info("用户名: sa, 密码: (空)");
+        log.info("MySQL 数据库连接成功");
+        log.info("数据库连接 URL: jdbc:mysql://localhost:3306/mcp");
     }
 }

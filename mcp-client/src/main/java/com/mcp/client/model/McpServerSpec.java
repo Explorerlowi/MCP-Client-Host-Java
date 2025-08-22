@@ -28,7 +28,7 @@ public class McpServerSpec {
     private String description;
     
     @Enumerated(EnumType.STRING)
-    private TransportType transport;
+    private TransportType type;
     
     private String url;
     

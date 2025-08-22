@@ -1,0 +1,91 @@
+# MCP Client Docker环境配置
+server:
+  port: 8086
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: mcp-client
+  profiles:
+    active: docker
+
+  datasource:
+    url: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: never
+      schema-locations: classpath:schema.sql
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.MySQLDialect
+    defer-datasource-initialization: false
+
+  # Jackson配置
+  jackson:
+    default-property-inclusion: non_null
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+# gRPC 配置
+grpc:
+  server:
+    port: 9090
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.mcp: DEBUG
+    org.springframework: INFO
+    io.grpc: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /app/logs/mcp-client.log
+    max-size: 100MB
+    max-history: 30
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# CORS配置（允许前端访问）
+cors:
+  allowed-origins:
+    - "http://localhost:3000"
+    - "http://mcp-ui"
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - "*"
+  allow-credentials: true

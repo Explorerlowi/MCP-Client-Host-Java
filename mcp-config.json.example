@@ -1,4 +1,58 @@
 {
   "mcpServers" : {
+    "zhipu-web-search" : {
+      "command" : "npx",
+      "args" : [ "cc-zhipu-web-search" ],
+      "env" : {
+        "BIGMODEL_API_KEY" : "c2bdc......0572.ydql3m...dCW"
+      },
+      "url" : null,
+      "type" : "stdio",
+      "disabled" : false,
+      "description" : null,
+      "timeout" : 60
+    },
+    "Bazi" : {
+      "command" : "npx",
+      "args" : [ "bazi-mcp" ],
+      "env" : null,
+      "url" : null,
+      "type" : "stdio",
+      "disabled" : false,
+      "description" : null,
+      "timeout" : 60
+    },
+    "zhipu-web-search-sse" : {
+      "command" : null,
+      "args" : null,
+      "env" : null,
+      "url" : "https://open.bigmodel.cn/api/mcp/web_search/sse?Authorization=c2bdce854c......9ad910572.yd...AhdCW",
+      "type" : "sse",
+      "disabled" : false,
+      "description" : null,
+      "timeout" : 60
+    },
+    "bilibili" : {
+      "command" : "uvx",
+      "args" : [ "bilibili-api-mcp-server" ],
+      "env" : null,
+      "url" : null,
+      "type" : "stdio",
+      "disabled" : false,
+      "description" : null,
+      "timeout" : 60
+    },
+    "amap-maps" : {
+      "command" : "npx",
+      "args" : [ "-y", "@amap/amap-maps-mcp-server" ],
+      "env" : {
+        "AMAP_MAPS_API_KEY" : "4640848......"
+      },
+      "url" : null,
+      "type" : "stdio",
+      "disabled" : false,
+      "description" : null,
+      "timeout" : 60
+    }
   }
 }

@@ -27,8 +27,8 @@ public class MCPServerInfo {
     @JsonProperty("description")
     private String description;
     
-    @JsonProperty("transport")
-    private TransportType transport;
+    @JsonProperty("type")
+    private TransportType type;
     
     @JsonProperty("connected")
     private boolean connected;

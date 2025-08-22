@@ -4,18 +4,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mcp.client.config.MCPServerConfig;
 import com.mcp.client.model.McpServerSpec;
 import com.mcp.client.model.TransportType;
+import com.mcp.client.repository.McpServerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * MCP 配置服务
@@ -25,28 +23,57 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class MCPConfigurationService {
-    
+
     private final ObjectMapper objectMapper;
     private final MCPServerRegistry serverRegistry;
+    private final McpServerRepository repository;
     
     /**
-     * 从 JSON 文件加载配置
+     * 从数据库加载配置
+     * @return 加载的服务器数量
+     */
+    public int loadConfigurationFromDatabase() {
+        try {
+            List<McpServerSpec> specs = repository.findAll();
+            log.info("从数据库找到 {} 个 MCP 服务器配置", specs.size());
+
+            int loadedCount = 0;
+            for (McpServerSpec spec : specs) {
+                try {
+                    serverRegistry.register(spec);
+                    log.info("成功注册 MCP 服务器: {}", spec.getId());
+                    loadedCount++;
+                } catch (Exception e) {
+                    log.error("注册 MCP 服务器失败: {}", spec.getId(), e);
+                }
+            }
+
+            return loadedCount;
+        } catch (Exception e) {
+            log.error("从数据库加载配置失败", e);
+            throw new RuntimeException("数据库配置加载失败", e);
+        }
+    }
+
+    /**
+     * 从文件迁移配置到数据库
      * @param configFile 配置文件路径
      */
-    public void loadConfigurationFromFile(String configFile) {
+    public void migrateFromFile(String configFile) {
         try {
             File file = new File(configFile);
             if (!file.exists()) {
                 log.warn("配置文件不存在: {}", configFile);
                 return;
             }
-            
+
             MCPServerConfig config = objectMapper.readValue(file, MCPServerConfig.class);
-            loadConfiguration(config);
-            
+            int migratedCount = loadConfiguration(config);
+            log.info("成功从文件迁移 {} 个服务器配置到数据库", migratedCount);
+
         } catch (IOException e) {
-            log.error("加载配置文件失败: {}", configFile, e);
-            throw new RuntimeException("配置文件加载失败", e);
+            log.error("迁移配置文件失败: {}", configFile, e);
+            throw new RuntimeException("配置文件迁移失败", e);
         }
     }
     
@@ -109,7 +136,7 @@ public class MCPConfigurationService {
         // 构建服务器规格
         McpServerSpec.McpServerSpecBuilder builder = McpServerSpec.builder()
                 .id(serverId)
-                .transport(transportType)
+                .type(transportType)
                 .disabled(config.isDisabled());
         
         // 设置超时时间（秒）
@@ -180,91 +207,6 @@ public class MCPConfigurationService {
         return TransportType.STDIO;
     }
     
-    /**
-     * 导出当前配置为 JSON
-     * @return JSON 配置字符串
-     */
-    public String exportConfigurationAsJson() {
-        try {
-            List<McpServerSpec> specs = serverRegistry.getAllSpecs();
-            MCPServerConfig config = new MCPServerConfig();
 
-            Map<String, MCPServerConfig.ServerConfig> mcpServers = specs.stream()
-                    .collect(Collectors.toMap(
-                            McpServerSpec::getId,
-                            this::convertFromServerSpec
-                    ));
 
-            config.setMcpServers(mcpServers);
-            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
-
-        } catch (Exception e) {
-            log.error("导出配置失败", e);
-            throw new RuntimeException("配置导出失败", e);
-        }
-    }
-
-    /**
-     * 保存当前配置到文件
-     * @param configFile 配置文件路径
-     */
-    public void saveConfigurationToFile(String configFile) {
-        try {
-            String configJson = exportConfigurationAsJson();
-            File file = new File(configFile);
-
-            // 确保父目录存在
-            File parentDir = file.getParentFile();
-            if (parentDir != null && !parentDir.exists()) {
-                parentDir.mkdirs();
-            }
-
-            // 写入文件
-            try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
-                writer.write(configJson);
-            }
-
-            log.info("成功保存配置到文件: {}", configFile);
-
-        } catch (IOException e) {
-            log.error("保存配置文件失败: {}", configFile, e);
-            throw new RuntimeException("配置文件保存失败", e);
-        }
-    }
-
-    /**
-     * 保存当前配置到默认配置文件 (mcp-config.json)
-     */
-    public void saveConfigurationToDefaultFile() {
-        saveConfigurationToFile("mcp-config.json");
-    }
-    
-    /**
-     * 将服务器规格转换为配置
-     * @param spec 服务器规格
-     * @return 服务器配置
-     */
-    private MCPServerConfig.ServerConfig convertFromServerSpec(McpServerSpec spec) {
-        MCPServerConfig.ServerConfig config = new MCPServerConfig.ServerConfig();
-        config.setDisabled(spec.isDisabled());
-        config.setType(spec.getTransport().name().toLowerCase());
-        config.setTimeout(spec.getTimeout());
-        
-        switch (spec.getTransport()) {
-            case STDIO:
-                config.setCommand(spec.getCommand());
-                if (spec.getArgs() != null) {
-                    config.setArgs(spec.getArgs().toArray(new String[0]));
-                }
-                config.setEnv(spec.getEnv());
-                break;
-                
-            case SSE:
-            case STREAMABLEHTTP:
-                config.setUrl(spec.getUrl());
-                break;
-        }
-        
-        return config;
-    }
 }

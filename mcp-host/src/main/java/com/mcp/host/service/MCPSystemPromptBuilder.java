@@ -14,14 +14,12 @@ public interface MCPSystemPromptBuilder {
      * @return 系统提示字符串
      */
     String buildSystemPromptWithMCPTools();
-    
+
     /**
-     * 构建指定服务器的系统提示
-     * @param serverName 服务器名称
-     * @return 系统提示字符串
+     * 构建指定服务器集合的系统提示
      */
-    String buildSystemPromptForServer(String serverName);
-    
+    String buildSystemPromptForServers(List<String> serverNames);
+
     /**
      * 获取可用工具列表
      * @return 工具信息列表
@@ -34,11 +32,6 @@ public interface MCPSystemPromptBuilder {
      * @return 工具信息列表
      */
     List<MCPToolInfo> getToolsForServer(String serverName);
-    
-    /**
-     * 构建指定服务器集合的系统提示
-     */
-    String buildSystemPromptForServers(List<String> serverNames);
 
 
 }

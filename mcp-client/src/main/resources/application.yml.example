@@ -4,27 +4,26 @@ server:
 spring:
   application:
     name: mcp-client
-  
+
   datasource:
-    url: jdbc:h2:mem:mcpclient
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: 
-  
+    url: jdbc:mysql://localhost:3306/mcp?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: never
+      schema-locations: classpath:schema.sql
+
   jpa:
     hibernate:
-      ddl-auto: create-drop
-    show-sql: true
+      ddl-auto: update
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
-    defer-datasource-initialization: true
-  
-  # 数据库初始化已禁用，所有配置从 mcp-config.json 加载
-  
-  h2:
-    console:
-      enabled: true
+        format_sql: false
+        dialect: org.hibernate.dialect.MySQLDialect
+    defer-datasource-initialization: false
 
 # gRPC 配置
 grpc:
@@ -34,5 +33,9 @@ grpc:
 # 日志配置
 logging:
   level:
-    com.mcp.client: DEBUG
-    org.springframework.web: DEBUG
+    root: INFO
+    com.mcp.client: INFO
+    org.springframework.web: WARN
+    org.springframework.web.servlet.DispatcherServlet: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN

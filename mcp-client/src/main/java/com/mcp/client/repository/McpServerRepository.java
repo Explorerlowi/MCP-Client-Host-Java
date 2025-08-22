@@ -21,10 +21,10 @@ public interface McpServerRepository extends JpaRepository<McpServerSpec, String
     
     /**
      * 根据传输类型查找服务器
-     * @param transport 传输类型
+     * @param type 传输类型
      * @return 服务器列表
      */
-    List<McpServerSpec> findByTransport(com.mcp.client.model.TransportType transport);
+    List<McpServerSpec> findByType(com.mcp.client.model.TransportType type);
     
     /**
      * 检查服务器ID是否存在

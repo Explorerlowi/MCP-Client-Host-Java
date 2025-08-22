@@ -1,22 +1,45 @@
+# MCP Host Docker环境配置
 server:
   port: 8087
+  servlet:
+    context-path: /
 
 spring:
   application:
     name: mcp-host
-  datasource:
-    url: jdbc:mysql://localhost:3306/mcp?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
-    username: root
-    password: 123456
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  sql:
-    init:
-      mode: never
-      schema-locations: classpath:schema.sql
+  profiles:
+    active: docker
 
-mybatis:
-  mapper-locations: classpath*:mapper/system/*.xml
-  type-aliases-package: com.mcp.host.domain
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8&useUnicode=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      validation-timeout: 5000
+      leak-detection-threshold: 60000
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+        use_sql_comments: true
+
+  # Jackson配置
+  jackson:
+    default-property-inclusion: non_null
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
 
 # MCP 客户端 gRPC 配置
 mcp:
@@ -25,7 +48,7 @@ mcp:
       host: localhost
       port: 9090
       timeout-seconds: 120  # gRPC 调用超时时间（秒），默认120秒
-    
+
     cache:
       ttl-minutes: 30
       max-size: 100
@@ -42,7 +65,7 @@ agent:
       你现在完全化身**Jarvis**—— 托尼・斯塔克的专属人工智能助手。请严格遵循以下特质与行为模式，为用户提供服务：
 
       # **语言风格**：
-      - 采用优雅的英伦腔调，用词精准、礼貌且略带正式感（例如使用 “先生 / 女士”“当然”“乐意效劳” 等）。
+      - 采用优雅的英伦腔调，用词精准、礼貌且略带正式感（例如使用 "先生 / 女士""当然""乐意效劳" 等）。
       - 避免口语化或随意的表达，语气沉稳但不刻板，可根据场景适当加入温和的幽默感。
 
       # **核心能力**：
@@ -53,16 +76,16 @@ agent:
       - tool_name: (required) The name of the tool to execute
       - arguments: (required) A JSON object containing the tool's input parameters, following the tool's input schema
       Usage:
-      ```json  
-      {  
-          "type": "use_mcp_tool",  
-          "server_name": "server name here",  
-          "tool_name": "tool name here",  
-          "arguments": {  
+      ```json
+      {
+          "type": "use_mcp_tool",
+          "server_name": "server name here",
+          "tool_name": "tool name here",
+          "arguments": {
               "param1": "value1",
-              "param2": "value2"  
-          }  
-      }  
+              "param2": "value2"
+          }
+      }
       ```
 
       ## access_mcp_resource
@@ -72,9 +95,9 @@ agent:
       - uri: (required) The URI identifying the specific resource to access
       Usage:
       ```json
-      {  
-          "type": "access_mcp_resource",  
-          "server_name": "server name here",  
+      {
+          "type": "access_mcp_resource",
+          "server_name": "server name here",
           "uri": "resource URI here"
       }
       ```
@@ -99,29 +122,51 @@ agent:
 # LLM 配置
 llm:
   openai:
-    api-key: your_openai_api_key
-    base-url: https://api.openai.com/v1
-    model: gpt-3.5-turbo
-    temperature: 0.7
-    max-tokens: 4096
-    timeout-seconds: 30
+    api-key: ${OPENAI_API_KEY}
+    base-url: ${OPENAI_BASE_URL}
+    model: ${OPENAI_MODEL}
+    temperature: ${OPENAI_TEMPERATURE}
+    max-tokens: ${OPENAI_MAX_TOKENS}
+    timeout-seconds: ${OPENAI_TIMEOUT_SECONDS}
 
   qianwen:
-    url: https://dashscope.aliyuncs.com/compatible-mode/v1
-    key: your_qianwen_api_key
+    url: ${QIANWEN_URL}
+    key: ${QIANWEN_API_KEY}
 
   rate-limit:
-    requests-per-minute: 60
-    requests-per-hour: 1000
+    requests-per-minute: ${RATE_LIMIT_REQUESTS_PER_MINUTE}
+    requests-per-hour: ${RATE_LIMIT_REQUESTS_PER_HOUR}
 
 # 日志配置
 logging:
   level:
     root: INFO
-    com.mcp.host: INFO
-    io.grpc: INFO
-    org.springframework.web: WARN
-    org.springframework.web.servlet.DispatcherServlet: WARN
-    org.mybatis: WARN
+    com.mcp: DEBUG
+    org.springframework: INFO
+    org.hibernate: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /app/logs/mcp-host.log
+    max-size: 100MB
+    max-history: 30
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true

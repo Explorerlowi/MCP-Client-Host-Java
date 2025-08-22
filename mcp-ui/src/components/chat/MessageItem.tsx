@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { ChatMessage } from '../../types/chat';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '../ui/badge'

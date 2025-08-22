@@ -48,8 +48,8 @@ const ServerList: React.FC<ServerListProps> = ({
   };
 
   // 获取传输类型显示文本
-  const getTransportText = (transport: TransportType): string => {
-    switch (transport) {
+  const getTransportText = (type: TransportType): string => {
+    switch (type) {
       case TransportType.STDIO:
         return 'STDIO';
       case TransportType.SSE:
@@ -57,7 +57,7 @@ const ServerList: React.FC<ServerListProps> = ({
       case TransportType.STREAMABLEHTTP:
         return 'HTTP流';
       default:
-        return transport;
+        return type;
     }
   };
 
@@ -229,11 +229,11 @@ const ServerList: React.FC<ServerListProps> = ({
                   </td>
                   <td className="px-3 py-2">
                     <span className={`px-3 py-1 text-xs font-medium rounded-full border ${
-                      server.transport.toLowerCase() === 'stdio' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
-                      server.transport.toLowerCase() === 'sse' ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' :
+                      server.type.toLowerCase() === 'stdio' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
+                      server.type.toLowerCase() === 'sse' ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' :
                       'bg-green-500/20 text-green-300 border-green-500/50'
                     }`}>
-                      {getTransportText(server.transport)}
+                      {getTransportText(server.type)}
                     </span>
                   </td>
                   <td className="px-3 py-2">

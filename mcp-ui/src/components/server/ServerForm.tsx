@@ -28,7 +28,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
     id: '',
     name: '',
     description: '',
-    transport: 'stdio' as TransportType,  
+    type: 'STDIO' as TransportType,
     url: '',
     command: '',
     args: '',
@@ -45,7 +45,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
         id: server.id,
         name: server.name || '',
         description: server.description || '',
-        transport: server.transport,
+        type: server.type,
         url: server.url || '',
         command: server.command || '',
         args: server.args ? server.args.join('\n') : '',
@@ -58,7 +58,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
         id: '',
         name: '',
         description: '',
-        transport: 'stdio' as TransportType,      
+        type: 'STDIO' as TransportType,
         url: '',
         command: '',
         args: '',
@@ -100,11 +100,11 @@ const ServerForm: React.FC<ServerFormProps> = ({
     }
 
     // 根据传输类型验证必需字段
-    if (formData.transport === TransportType.STDIO) {
+    if (formData.type === TransportType.STDIO) {
       if (!formData.command.trim()) {
         newErrors.command = 'STDIO 传输需要指定命令';
       }
-    } else if (formData.transport === TransportType.SSE || formData.transport === TransportType.STREAMABLEHTTP) {
+    } else if (formData.type === TransportType.SSE || formData.type === TransportType.STREAMABLEHTTP) {
       if (!formData.url.trim()) {
         newErrors.url = 'HTTP 传输需要指定 URL';
       } else if (!/^https?:\/\/.+/.test(formData.url)) {
@@ -129,11 +129,11 @@ const ServerForm: React.FC<ServerFormProps> = ({
       id: formData.id.trim(),
       name: formData.name.trim(),
       description: formData.description.trim(),
-      transport: formData.transport,
+      type: formData.type,
       url: formData.url.trim() || undefined,
       command: formData.command.trim() || undefined,
       args: formData.args.trim() ? formData.args.split('\n').map(arg => arg.trim()).filter(arg => arg) : undefined,
-      env: formData.env.trim() ? 
+      env: formData.env.trim() ?
         Object.fromEntries(
           formData.env.split('\n')
             .map(line => line.trim())
@@ -226,8 +226,8 @@ const ServerForm: React.FC<ServerFormProps> = ({
             <div className="space-y-2">
               <Label htmlFor="transport">传输协议 *</Label>
               <Select
-                value={formData.transport}
-                onValueChange={(value) => handleInputChange('transport', value as TransportType)}
+                value={formData.type}
+                onValueChange={(value) => handleInputChange('type', value as TransportType)}
                 disabled={isLoading}
               >
                 <SelectTrigger>
@@ -257,7 +257,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
           </div>
 
           {/* URL配置（SSE/HTTP流传输） */}
-          {(formData.transport === TransportType.SSE || formData.transport === TransportType.STREAMABLEHTTP) && (
+          {(formData.type === TransportType.SSE || formData.type === TransportType.STREAMABLEHTTP) && (
             <div className="space-y-2">
               <Label htmlFor="url">服务器URL *</Label>
               <Input
@@ -281,7 +281,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
           )}
 
           {/* STDIO传输配置 */}
-          {formData.transport === TransportType.STDIO && (
+          {formData.type === TransportType.STDIO && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="command">启动命令 *</Label>

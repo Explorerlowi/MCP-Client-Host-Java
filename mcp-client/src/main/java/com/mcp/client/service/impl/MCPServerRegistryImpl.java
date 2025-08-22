@@ -93,14 +93,7 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
             // 注册到内存
             specs.put(spec.getId(), spec);
 
-            // 保存配置到文件（在创建客户端连接之前，确保配置已持久化）
-            try {
-                configurationService.saveConfigurationToDefaultFile();
-                log.debug("已将配置保存到 mcp-config.json 文件");
-            } catch (Exception e) {
-                log.warn("保存配置到文件失败，但服务器注册成功: {}", e.getMessage());
-                // 不抛出异常，因为服务器注册已经成功
-            }
+
 
             // 只有未禁用的服务器才创建客户端连接
             if (!spec.isDisabled()) {
@@ -230,14 +223,7 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                 }
             }
 
-            // 保存配置到文件
-            try {
-                configurationService.saveConfigurationToDefaultFile();
-                log.debug("已将配置保存到 mcp-config.json 文件");
-            } catch (Exception e) {
-                log.warn("保存配置到文件失败，但服务器注销成功: {}", e.getMessage());
-                // 不抛出异常，因为服务器注销已经成功
-            }
+
 
             log.info("MCP 服务器注销成功: {}", serverId);
         } catch (Exception e) {
@@ -412,12 +398,12 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
             throw new IllegalArgumentException("服务器ID不能为空");
         }
         
-        if (spec.getTransport() == null) {
+        if (spec.getType() == null) {
             throw new IllegalArgumentException("传输协议不能为空");
         }
-        
+
         // 根据传输协议验证必要参数
-        switch (spec.getTransport()) {
+        switch (spec.getType()) {
             case STDIO:
                 if (spec.getCommand() == null || spec.getCommand().trim().isEmpty()) {
                     throw new IllegalArgumentException("STDIO 传输协议需要指定命令");
@@ -430,7 +416,7 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                 }
                 break;
             default:
-                throw new UnsupportedTransportException(spec.getTransport());
+                throw new UnsupportedTransportException(spec.getType());
         }
     }
     
@@ -438,13 +424,13 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
      * 根据配置创建 MCP 客户端
      */
     private MCPClient buildClient(McpServerSpec spec) {
-        log.debug("创建 MCP 客户端，传输协议: {}, 服务器: {}", spec.getTransport(), spec.getId());
-        
-        return switch (spec.getTransport()) {
+        log.debug("创建 MCP 客户端，传输协议: {}, 服务器: {}", spec.getType(), spec.getId());
+
+        return switch (spec.getType()) {
             case STDIO -> new MCPStdioClient(spec);
             case SSE -> new MCPSseClient(spec);
             case STREAMABLEHTTP -> new MCPStreamableHttpClient(spec);
-            default -> throw new UnsupportedTransportException(spec.getTransport());
+            default -> throw new UnsupportedTransportException(spec.getType());
         };
     }
     
@@ -531,13 +517,7 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
                 }
             }
 
-            // 保存配置到文件
-            try {
-                configurationService.saveConfigurationToDefaultFile();
-                log.info("已将禁用状态保存到配置文件: {}", serverId);
-            } catch (Exception e) {
-                log.warn("保存配置文件失败，但服务器已在数据库中禁用: {} - {}", serverId, e.getMessage());
-            }
+
 
             // 清除失败信息，避免继续累积
             retryManager.clearFailureInfo(serverId);

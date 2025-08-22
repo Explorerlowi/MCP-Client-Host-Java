@@ -20,21 +20,30 @@ import java.nio.file.Paths;
 public class MCPConfigurationLoader implements CommandLineRunner {
 
     private final MCPConfigurationService configurationService;
-    
+
     @Override
     public void run(String... args) throws Exception {
-        log.info("开始加载 MCP 服务器配置...");
+        log.info("开始从数据库加载 MCP 服务器配置...");
 
-        // 只从根目录的 mcp-config.json 文件加载配置
-        Path rootConfigPath = Paths.get("mcp-config.json");
+        try {
+            // 从数据库加载配置
+            int loadedCount = configurationService.loadConfigurationFromDatabase();
+            log.info("从数据库加载 MCP 服务器配置完成，共加载 {} 个服务器", loadedCount);
 
-        if (Files.exists(rootConfigPath)) {
-            log.info("从根目录配置文件加载: {}", rootConfigPath);
-            configurationService.loadConfigurationFromFile(rootConfigPath.toString());
-            log.info("MCP 服务器配置加载完成");
-        } else {
-            log.warn("根目录配置文件不存在: {}", rootConfigPath);
-            log.warn("请确保配置文件存在，否则将无法加载任何 MCP 服务器");
+            // 如果数据库中没有配置，尝试从文件迁移
+            if (loadedCount == 0) {
+                Path rootConfigPath = Paths.get("mcp-config.json");
+                if (Files.exists(rootConfigPath)) {
+                    log.info("数据库中无配置，尝试从文件迁移: {}", rootConfigPath);
+                    configurationService.migrateFromFile(rootConfigPath.toString());
+                    log.info("配置文件迁移完成");
+                } else {
+                    log.warn("数据库和配置文件都不存在，将无法加载任何 MCP 服务器");
+                }
+            }
+        } catch (Exception e) {
+            log.error("加载 MCP 服务器配置失败", e);
+            throw e;
         }
     }
 }

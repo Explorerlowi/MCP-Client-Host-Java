@@ -8,8 +8,8 @@ import com.mcp.client.model.TransportType;
  */
 public class UnsupportedTransportException extends McpException {
     
-    public UnsupportedTransportException(TransportType transport) {
-        super("不支持的传输协议类型: " + transport);
+    public UnsupportedTransportException(TransportType type) {
+        super("不支持的传输协议类型: " + type);
     }
     
     public UnsupportedTransportException(String message) {

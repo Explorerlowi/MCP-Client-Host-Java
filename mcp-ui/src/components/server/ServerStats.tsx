@@ -11,13 +11,7 @@ const ServerStats: React.FC<ServerStatsProps> = ({ stats }) => {
     ? Math.round((stats.connectedServers / stats.totalServers) * 100) 
     : 0;
 
-  // 获取连接状态的样式类
-  const getConnectionStatusClass = (): string => {
-    if (connectionRate >= 80) return 'status-excellent';
-    if (connectionRate >= 60) return 'status-good';
-    if (connectionRate >= 40) return 'status-warning';
-    return 'status-poor';
-  };
+
 
 
 

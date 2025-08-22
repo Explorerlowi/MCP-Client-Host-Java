@@ -46,7 +46,7 @@ public abstract class AbstractMCPClient implements MCPClient {
     public MCPServerInfo getServerInfo() {
         return MCPServerInfo.builder()
                 .name(spec.getName() != null ? spec.getName() : spec.getId())
-                .transport(spec.getTransport())
+                .type(spec.getType())
                 .connected(isConnected())
                 .description(spec.getDescription() != null ? spec.getDescription() : "MCP Server: " + spec.getId())
                 .version(serverImplementationInfo != null ? serverImplementationInfo.getVersion() : "1.0.0")

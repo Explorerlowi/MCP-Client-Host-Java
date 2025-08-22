@@ -3,7 +3,7 @@ import type { ChatMessage } from '../../types/chat';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import './ChatInterface.css';
-import { Card } from '../ui/card';
+
 import { ScrollArea } from '../ui/scroll-area';
 import { Button } from '../ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
@@ -21,7 +21,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const chatService = useMemo(() => new ChatService({ baseUrl: '/api' }), []);
   const [currentConversationId, setCurrentConversationId] = useState<string>(
     conversationId || ''
