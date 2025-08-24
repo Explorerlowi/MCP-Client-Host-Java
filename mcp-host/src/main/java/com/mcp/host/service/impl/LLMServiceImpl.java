@@ -677,8 +677,8 @@ public class LLMServiceImpl {
                 // 增量更新客户端接收计数，而不是设置为总数
                 int currentReceivedCount = cacheData.getClientReceivedChunkCount();
                 streamCacheService.markClientReceived(sessionId, messageId, currentReceivedCount + 1);
-                log.debug("客户端接收计数更新: sessionId={}, messageId={}, 从 {} 增加到 {}",
-                        sessionId, messageId, currentReceivedCount, currentReceivedCount + 1);
+                // log.debug("客户端接收计数更新: sessionId={}, messageId={}, 从 {} 增加到 {}",
+                //         sessionId, messageId, currentReceivedCount, currentReceivedCount + 1);
             }
         }
     }

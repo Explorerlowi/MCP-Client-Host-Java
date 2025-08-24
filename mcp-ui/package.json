@@ -21,7 +21,7 @@
     "axios": "^1.6.0",
     "class-variance-authority": "^0.7.1",
     "date-fns": "^2.30.0",
-    "lucide-react": "^0.539.0",
+    "lucide-react": "^0.453.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",

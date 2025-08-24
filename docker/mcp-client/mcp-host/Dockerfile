@@ -18,9 +18,6 @@ EXPOSE 8087
 # 合理内存设置（容器内识别 cgroup）
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 
-# 健康检查（确保应用暴露 /actuator/health）
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
-  CMD curl -fsS http://localhost:8087/actuator/health || exit 1
 
 # 用环境变量控制 profile（不在这里写死 -Dspring.profiles.active）
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

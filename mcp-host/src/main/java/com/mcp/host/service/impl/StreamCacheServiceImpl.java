@@ -430,7 +430,7 @@ public class StreamCacheServiceImpl implements IStreamCacheService {
         if (cacheData != null) {
             cacheData.setClientReceivedChunkCount(receivedCount);
             cacheData.setUpdateTime(LocalDateTime.now());
-            log.debug("标记客户端接收位置: {}, 已接收: {}", cacheKey, receivedCount);
+            // log.debug("标记客户端接收位置: {}, 已接收: {}", cacheKey, receivedCount);
         }
     }
 } 

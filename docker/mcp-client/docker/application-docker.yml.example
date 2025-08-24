@@ -41,11 +41,18 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
 
+# MyBatis配置
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.mcp.host.domain
+  configuration:
+    map-underscore-to-camel-case: true
+
 # MCP 客户端 gRPC 配置
 mcp:
   client:
     grpc:
-      host: localhost
+      host: mcp-client
       port: 9090
       timeout-seconds: 120  # gRPC 调用超时时间（秒），默认120秒
 

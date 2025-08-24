@@ -51,9 +51,6 @@ USER mcpclient
 
 EXPOSE 8086 9090
 
-# 健康检查（确保应用开放 /actuator/health）
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
-  CMD curl -fsS http://localhost:8086/actuator/health || exit 1
 
 # 用环境变量控制 Spring Profile（不要在这里写死 -Dspring.profiles.active）
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

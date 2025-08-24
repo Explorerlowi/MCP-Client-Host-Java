@@ -83,7 +83,7 @@ public class DataInitializer implements CommandLineRunner {
                 .description("Bilibili API 服务器")
                 .type(TransportType.STDIO)
                 .command("uvx")
-                .args(Arrays.asList("bilibili-api-mcp-server"))
+                .args(Arrays.asList("--index-url","https://mirrors.aliyun.com/pypi/simple/","bilibili-api-mcp-server"))
                 .timeout(60L)
                 .disabled(false)
                 .build();

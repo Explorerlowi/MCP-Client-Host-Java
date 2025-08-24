@@ -3,12 +3,14 @@ services:
   mysql:
     image: mysql:8.0
     container_name: mcp-mysql
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: mcproot123
-      MYSQL_DATABASE: mcp
-      MYSQL_USER: mcpuser
-      MYSQL_PASSWORD: mcppass123
-      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: ${TZ}
     ports:
       - "3306:3306"
     volumes:
@@ -30,15 +32,17 @@ services:
       context: ./mcp-host
       dockerfile: Dockerfile
     container_name: mcp-host
+    env_file:
+      - .env
     environment:
       # 一劳永逸：只读 /app/config/，彻底忽略 JAR 里的 application*.yml
       SPRING_CONFIG_LOCATION: optional:file:/app/config/
 
       # 下面这些保持你原有的（也会覆盖外部 yml 里的同名项）
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/mcp?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: mcpuser
-      SPRING_DATASOURCE_PASSWORD: mcppass123
-      TZ: Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: ${TZ}
     ports:
       - "8087:8087"
     volumes:
@@ -48,12 +52,7 @@ services:
       - mcp-network
     depends_on:
       mysql:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sS --max-time 5 http://localhost:8087/actuator/health || curl -sS --max-time 5 http://localhost:8087/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+        condition: service_started
     restart: unless-stopped
 
   # MCP Client（REST:8086, 内部 gRPC:9090）
@@ -62,6 +61,8 @@ services:
       context: ./mcp-client
       dockerfile: Dockerfile
     container_name: mcp-client
+    env_file:
+      - .env
     environment:
       # 同样固定只读外部 /app/config/
       SPRING_CONFIG_LOCATION: optional:file:/app/config/
@@ -72,7 +73,7 @@ services:
       # 运行期需要的 HOME / 缓存 / PATH
       HOME: /home/mcpclient
       XDG_CACHE_HOME: /home/mcpclient/.cache
-      TZ: Asia/Shanghai
+      TZ: ${TZ}
     ports:
       - "8086:8086"
       # - "9090:9090"  # 仅当需要对外暴露 gRPC 时再放开
@@ -86,12 +87,7 @@ services:
       - mcp-network
     depends_on:
       mcp-host:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sS --max-time 5 http://localhost:8086/actuator/health || curl -sS --max-time 5 http://localhost:8086/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+        condition: service_started
     restart: unless-stopped
 
   # MCP UI（Nginx:80 -> 宿主 3000）
@@ -108,14 +104,9 @@ services:
       - mcp-network
     depends_on:
       mcp-client:
-        condition: service_healthy
+        condition: service_started
       mcp-host:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+        condition: service_started
     restart: unless-stopped
 
 volumes:
