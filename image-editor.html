@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AI图片编辑器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                border-radius: 10px;
+                margin: 0 5px;
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px 15px;
+            }
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 15px;
+            }
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .upload-area {
+                padding: 20px;
+                border-radius: 10px;
+            }
+        }
+
+        .upload-area:hover {
+            border-color: #4facfe;
+            background-color: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background-color: #f0f8ff;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .btn {
+                padding: 15px 25px;
+                font-size: 16px;
+                width: 100%;
+                margin-bottom: 10px;
+                border-radius: 12px;
+            }
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-cancel {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .btn-cancel {
+                padding: 15px 25px;
+                font-size: 16px;
+                width: 100%;
+                margin-bottom: 10px;
+                border-radius: 12px;
+            }
+        }
+
+        .btn-cancel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .input-group input, .input-group textarea {
+                padding: 12px;
+                font-size: 16px;
+                border-radius: 8px;
+            }
+        }
+
+        .input-group input:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .preview-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .image-preview {
+            text-align: center;
+        }
+
+        .image-preview h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .image-container {
+            border: 2px solid #e1e5e9;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f8f9fa;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .loading {
+                padding: 15px;
+                margin: 10px;
+            }
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background-color: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .success {
+            background-color: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            position: relative;
+            margin: auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 1000px;
+            height: 90%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 100%;
+                height: 100%;
+                padding: 20px;
+                top: 0;
+                transform: none;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+        }
+
+        .modal-image {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 10px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 768px) {
+            .modal-image {
+                max-height: 70vh;
+                border-radius: 5px;
+            }
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .close {
+                top: 10px;
+                right: 15px;
+                font-size: 30px;
+            }
+        }
+
+        .close:hover {
+            color: #4facfe;
+        }
+
+        .modal-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .modal-controls {
+                flex-direction: column;
+                gap: 10px;
+                bottom: 15px;
+                width: 90%;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+        }
+
+        .modal-btn {
+            background: rgba(79, 172, 254, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .modal-btn {
+                padding: 15px 20px;
+                font-size: 16px;
+                width: 100%;
+                margin: 0;
+            }
+        }
+
+        .modal-btn:hover {
+            background: rgba(79, 172, 254, 1);
+            transform: translateY(-2px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .image-container img {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .image-container img:hover {
+            transform: scale(1.02);
+        }
+
+        /* 上传图片列表样式 */
+        .uploaded-image-item {
+            position: relative;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            padding: 10px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .uploaded-image-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        @media (max-width: 768px) {
+            .uploaded-image-item {
+                padding: 12px;
+                margin-bottom: 12px;
+                min-height: 140px;
+                touch-action: manipulation;
+            }
+        }
+
+        .uploaded-image-item img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .uploaded-image-item img {
+                width: 80px;
+                height: 80px;
+            }
+        }
+
+        .uploaded-image-item .image-info {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .uploaded-image-item .remove-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .uploaded-image-item .remove-btn:hover {
+            background: #ff3742;
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .uploaded-image-item .remove-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 20px;
+                top: -8px;
+                right: -8px;
+                touch-action: manipulation;
+            }
+        }
+
+        .image-order {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(79, 172, 254, 0.9);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .image-order {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+                top: 5px;
+                left: 5px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .preview-section {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .modal-content {
+                width: 95%;
+                height: 95%;
+                padding: 10px;
+            }
+            
+            .close {
+                top: 10px;
+                right: 20px;
+                font-size: 30px;
+            }
+            
+            .input-group input, .input-group textarea {
+                font-size: 16px;
+                -webkit-appearance: none;
+                -webkit-border-radius: 8px;
+            }
+            
+            .upload-text {
+                font-size: 1em;
+            }
+            
+            .upload-icon {
+                font-size: 2em;
+            }
+            
+            #imagesList {
+                justify-content: center;
+                gap: 10px;
+            }
+            
+            .upload-area {
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .btn {
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .modal-btn {
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
+
+        /* 提示词缓存面板样式 */
+        .prompt-cache-panel {
+            background: #f8f9fa;
+            border: 2px solid #e1e5e9;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .prompt-cache-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .prompt-cache-header h4 {
+            color: #333;
+            margin: 0;
+        }
+
+        .prompt-cache-toggle {
+            background: #4facfe;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .prompt-cache-toggle:hover {
+            background: #3d8bfe;
+        }
+
+        .prompt-cache-content {
+            display: none;
+        }
+
+        .prompt-cache-content.show {
+            display: block;
+        }
+
+        .prompt-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .prompt-item:hover {
+            border-color: #4facfe;
+            box-shadow: 0 2px 8px rgba(79, 172, 254, 0.2);
+        }
+
+        .prompt-item.active {
+            border-color: #4facfe;
+            background: #f0f8ff;
+        }
+
+        .prompt-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .prompt-content {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .prompt-delete {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            display: none;
+        }
+
+        .prompt-item:hover .prompt-delete {
+            display: block;
+        }
+
+        .add-prompt-form {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .add-prompt-form.show {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 0.9em;
+            border-radius: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .prompt-cache-panel {
+                padding: 15px;
+                border-radius: 10px;
+            }
+
+            .prompt-cache-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .prompt-item {
+                padding: 12px;
+            }
+
+            .form-buttons {
+                flex-direction: column;
+            }
+
+            .btn-small {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 AI图片编辑器</h1>
+            <p>使用AI技术为您的图片添加创意元素</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="upload-section">
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">点击或拖拽上传图片</div>
+                    <div style="color: #999; font-size: 0.9em;">支持 JPG, PNG, GIF 格式，可同时选择多张图片</div>
+                    <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
+                </div>
+                
+                <!-- 已上传图片预览区域 -->
+                <div id="uploadedImages" style="margin-top: 20px; display: none;">
+                    <h4 style="margin-bottom: 15px; color: #333;">已上传的图片 (按顺序排列):</h4>
+                    <div id="imagesList" style="display: flex; flex-wrap: wrap; gap: 15px;"></div>
+                    <button class="btn" onclick="clearAllImages()" style="margin-top: 15px; background: #ff6b6b;">🗑️ 清空所有图片</button>
+                </div>
+            </div>
+            
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="apiKey">API密钥:</label>
+                    <input type="password" id="apiKey" placeholder="请输入您的API密钥">
+                </div>
+
+                <!-- 提示词缓存面板 -->
+                <div class="prompt-cache-panel">
+                    <div class="prompt-cache-header">
+                        <h4>📝 提示词缓存</h4>
+                        <button class="prompt-cache-toggle" onclick="togglePromptCache()">展开/收起</button>
+                    </div>
+                    <div class="prompt-cache-content" id="promptCacheContent">
+                        <div id="promptList"></div>
+                        <button class="btn btn-small" onclick="showAddPromptForm()">➕ 添加新提示词</button>
+
+                        <div class="add-prompt-form" id="addPromptForm">
+                            <div class="form-group">
+                                <label for="promptTitle">标题:</label>
+                                <input type="text" id="promptTitle" placeholder="给这个提示词起个名字">
+                            </div>
+                            <div class="form-group">
+                                <label for="promptContent">提示词内容:</label>
+                                <textarea id="promptContent" placeholder="输入提示词内容..."></textarea>
+                            </div>
+                            <div class="form-buttons">
+                                <button class="btn btn-small" onclick="savePrompt()">💾 保存</button>
+                                <button class="btn btn-small" onclick="cancelAddPrompt()" style="background: #6c757d;">❌ 取消</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="editPrompt">编辑指令:</label>
+                    <textarea id="editPrompt" class="textarea" placeholder="例如: 将这些图片合成一张，在我旁边添加一只可爱的羊驼">请根据我上传的图片进行创意编辑，可以合成、修改或添加新元素</textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn" onclick="processImage()" id="processBtn">🚀 开始编辑</button>
+                    <button class="btn-cancel" onclick="cancelRequest()" id="cancelBtn">⏹️ 中断请求</button>
+                </div>
+            </div>
+            
+            <div class="error" id="errorMsg"></div>
+            <div class="success" id="successMsg"></div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>AI正在处理您的图片，请稍候...</div>
+            </div>
+            
+            <div class="preview-section">
+                <div class="image-preview">
+                    <h3>原始图片</h3>
+                    <div class="image-container" id="originalImage">
+                        <div class="placeholder">请先上传图片</div>
+                    </div>
+                </div>
+                
+                <div class="image-preview">
+                    <h3>编辑结果</h3>
+                    <div class="image-container" id="editedImage">
+                        <div class="placeholder">编辑后的图片将显示在这里</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片放大查看模态框 -->
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <img id="modalImage" class="modal-image" src="" alt="放大查看">
+            <div class="modal-controls">
+                <button class="modal-btn" onclick="downloadModalImage()">💾 下载图片</button>
+                <button class="modal-btn" onclick="closeModal()">❌ 关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+        let originalImageData = null;
+        let currentRequest = null; // 用于存储当前的请求，以便中断
+        let currentResponseId = null; // 用于存储当前响应的ID
+        let promptCache = []; // 提示词缓存数组
+
+        // 文件上传处理
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        
+        // 拖拽上传
+        const uploadArea = document.querySelector('.upload-area');
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            if (files.length > 0) {
+                processFiles(files);
+            }
+            // 清空文件输入框的值，允许重复选择相同文件
+            event.target.value = '';
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = Array.from(event.dataTransfer.files);
+            if (files.length > 0) {
+                processFiles(files);
+            }
+        }
+
+        function processFiles(files) {
+            const validFiles = files.filter(file => file.type.startsWith('image/'));
+            
+            if (validFiles.length === 0) {
+                showError('请选择有效的图片文件');
+                return;
+            }
+            
+            if (validFiles.length !== files.length) {
+                showError(`已过滤掉 ${files.length - validFiles.length} 个非图片文件`);
+            }
+            
+            // 添加到已选择的文件列表
+            validFiles.forEach(file => {
+                if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                    selectedFiles.push(file);
+                }
+            });
+            
+            updateImagesList();
+            showSuccess(`成功添加 ${validFiles.length} 张图片！`);
+        }
+
+        function updateImagesList() {
+            const uploadedImagesDiv = document.getElementById('uploadedImages');
+            const imagesListDiv = document.getElementById('imagesList');
+            
+            if (selectedFiles.length === 0) {
+                uploadedImagesDiv.style.display = 'none';
+                return;
+            }
+            
+            uploadedImagesDiv.style.display = 'block';
+            imagesListDiv.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageItem = document.createElement('div');
+                    imageItem.className = 'uploaded-image-item';
+                    imageItem.innerHTML = `
+                        <div class="image-order">${index + 1}</div>
+                        <img src="${e.target.result}" alt="${file.name}" onclick="openModal('${e.target.result}', '${file.name}')">
+                        <div class="image-info">${file.name}</div>
+                        <button class="remove-btn" onclick="removeImage(${index})" title="删除图片">×</button>
+                    `;
+                    imagesListDiv.appendChild(imageItem);
+                };
+                reader.readAsDataURL(file);
+            });
+            
+            // 更新原图显示（显示第一张图片）
+            if (selectedFiles.length > 0) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    originalImageData = e.target.result;
+                    displayOriginalImage(originalImageData);
+                };
+                reader.readAsDataURL(selectedFiles[0]);
+            }
+        }
+
+        function removeImage(index) {
+            selectedFiles.splice(index, 1);
+            updateImagesList();
+            showSuccess('图片已删除');
+        }
+
+        function clearAllImages() {
+            selectedFiles = [];
+            updateImagesList();
+            document.getElementById('originalImage').innerHTML = '<div class="placeholder">请先上传图片</div>';
+            showSuccess('已清空所有图片');
+        }
+
+        function displayOriginalImage(imageSrc) {
+            const container = document.getElementById('originalImage');
+            container.innerHTML = `<img src="${imageSrc}" alt="原始图片" onclick="openModal('${imageSrc}', '原始图片')">`;
+        }
+
+        function showError(message, persistent = false) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+
+            // 如果不是常驻错误，5秒后自动隐藏
+            if (!persistent) {
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function hideError() {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMsg');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const processBtn = document.getElementById('processBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+
+            if (show) {
+                loading.style.display = 'block';
+                processBtn.disabled = true;
+                cancelBtn.style.display = 'inline-block';
+            } else {
+                loading.style.display = 'none';
+                processBtn.disabled = false;
+                cancelBtn.style.display = 'none';
+            }
+        }
+
+        async function processImage() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const editPrompt = document.getElementById('editPrompt').value.trim();
+
+            // 隐藏之前的错误提示
+            hideError();
+
+            // 验证输入
+            if (!apiKey) {
+                showError('请输入API密钥');
+                return;
+            }
+
+            if (!editPrompt) {
+                showError('请输入编辑指令');
+                return;
+            }
+
+            if (selectedFiles.length === 0) {
+                showError('请先上传图片');
+                return;
+            }
+
+            showLoading(true);
+            
+            try {
+                // 构建parts数组，先添加文本提示
+                const parts = [{
+                    text: editPrompt
+                }];
+                
+                // 按上传顺序添加所有图片
+                for (const file of selectedFiles) {
+                    const base64Data = await fileToBase64(file);
+                    parts.push({
+                        inlineData: {
+                            mimeType: file.type,
+                            data: base64Data
+                        }
+                    });
+                }
+                
+                // 构建请求体
+                const requestBody = {
+                    contents: [
+                        {
+                            role: "user",
+                            parts: parts
+                        }
+                    ],
+                    generationConfig: {
+                        responseModalities: [
+                            "TEXT",
+                            "IMAGE"
+                        ]
+                    }
+                };
+
+                // 创建AbortController用于中断请求
+                const controller = new AbortController();
+                currentRequest = controller;
+
+                // 发送请求
+                const response = await fetch('https://yunwu.ai/v1beta/models/gemini-2.5-flash-image-preview:generateContent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || `HTTP错误: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // 提取responseId
+                currentResponseId = result.responseId || null;
+
+                // 处理响应
+                if (result.candidates && result.candidates.length > 0) {
+                    const candidate = result.candidates[0];
+
+                    // 查找图片数据
+                    let imageData = null;
+                    let mimeType = null;
+                    for (const part of candidate.content.parts) {
+                        if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
+                            imageData = part.inlineData.data;
+                            mimeType = part.inlineData.mimeType;
+                            break;
+                        }
+                    }
+
+                    if (imageData && mimeType) {
+                        displayEditedImage(imageData, mimeType);
+                        showSuccess('图片编辑完成！');
+                    } else {
+                        showError('API返回的数据中未找到编辑后的图片', true); // 常驻错误提示
+                    }
+                } else {
+                    showError('API返回了无效的响应格式', true); // 常驻错误提示
+                }
+                
+            } catch (error) {
+                console.error('处理图片时出错:', error);
+                if (error.name === 'AbortError') {
+                    showError('请求已被中断');
+                } else {
+                    showError(`处理失败: ${error.message}`);
+                }
+            } finally {
+                showLoading(false);
+                currentRequest = null;
+            }
+        }
+
+        // 中断请求函数
+        function cancelRequest() {
+            if (currentRequest) {
+                currentRequest.abort();
+                currentRequest = null;
+                showLoading(false);
+                showError('请求已中断');
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // 移除data:image/jpeg;base64,前缀
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function displayEditedImage(base64Data, mimeType) {
+            const container = document.getElementById('editedImage');
+            const imageSrc = `data:${mimeType};base64,${base64Data}`;
+            const fileExtension = mimeType.split('/')[1] || 'jpg';
+
+            // 生成文件名：nano-banana拼接responseId
+            let fileName = 'nano-banana';
+            if (currentResponseId) {
+                fileName += `-${currentResponseId}`;
+            } else {
+                // 如果没有responseId，使用时间戳作为后备
+                fileName += `-${Date.now()}`;
+            }
+            fileName += `.${fileExtension}`;
+
+            container.innerHTML = `
+                <img src="${imageSrc}" alt="编辑后的图片" onclick="openModal('${imageSrc}', '编辑后的图片')">
+                <div style="margin-top: 15px;">
+                    <button class="btn" onclick="downloadImage('${imageSrc}', '${fileName}')">💾 下载图片</button>
+                    <button class="btn" onclick="openModal('${imageSrc}', '编辑后的图片')">🔍 放大查看</button>
+                </div>
+            `;
+        }
+
+        function downloadImage(imageSrc, filename) {
+            const link = document.createElement('a');
+            link.href = imageSrc;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 模态框相关函数
+        function openModal(imageSrc, altText) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            
+            modalImage.src = imageSrc;
+            modalImage.alt = altText;
+            modal.style.display = 'block';
+            
+            // 存储当前图片信息用于下载
+            modal.dataset.currentImageSrc = imageSrc;
+            modal.dataset.currentImageAlt = altText;
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = 'none';
+        }
+
+        function downloadModalImage() {
+            const modal = document.getElementById('imageModal');
+            const imageSrc = modal.dataset.currentImageSrc;
+            const altText = modal.dataset.currentImageAlt;
+
+            if (imageSrc) {
+                let fileName;
+                if (altText === '原始图片') {
+                    fileName = 'original-image.jpg';
+                } else {
+                    // 对于编辑后的图片，使用nano-banana命名
+                    fileName = 'nano-banana';
+                    if (currentResponseId) {
+                        fileName += `-${currentResponseId}`;
+                    } else {
+                        fileName += `-${Date.now()}`;
+                    }
+                    fileName += '.png';
+                }
+                downloadImage(imageSrc, fileName);
+            }
+        }
+
+        // 点击模态框背景关闭
+        document.getElementById('imageModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeModal();
+            }
+        });
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // 保存数据到localStorage
+        function saveToLocalStorage() {
+            const apiKey = document.getElementById('apiKey').value;
+            const editPrompt = document.getElementById('editPrompt').value;
+
+            localStorage.setItem('ai-image-editor-apikey', apiKey);
+            localStorage.setItem('ai-image-editor-prompt', editPrompt);
+            localStorage.setItem('ai-image-editor-prompt-cache', JSON.stringify(promptCache));
+        }
+
+        // 从localStorage恢复数据
+        function loadFromLocalStorage() {
+            const savedApiKey = localStorage.getItem('ai-image-editor-apikey');
+            const savedPrompt = localStorage.getItem('ai-image-editor-prompt');
+            const savedPromptCache = localStorage.getItem('ai-image-editor-prompt-cache');
+
+            if (savedApiKey) {
+                document.getElementById('apiKey').value = savedApiKey;
+            }
+
+            if (savedPrompt) {
+                document.getElementById('editPrompt').value = savedPrompt;
+            }
+
+            if (savedPromptCache) {
+                try {
+                    promptCache = JSON.parse(savedPromptCache);
+                    renderPromptList();
+                } catch (e) {
+                    console.error('加载提示词缓存失败:', e);
+                    promptCache = [];
+                }
+            }
+        }
+
+        // 提示词缓存相关函数
+        function togglePromptCache() {
+            const content = document.getElementById('promptCacheContent');
+            content.classList.toggle('show');
+        }
+
+        function showAddPromptForm() {
+            const form = document.getElementById('addPromptForm');
+            form.classList.add('show');
+            document.getElementById('promptTitle').focus();
+        }
+
+        function cancelAddPrompt() {
+            const form = document.getElementById('addPromptForm');
+            form.classList.remove('show');
+            document.getElementById('promptTitle').value = '';
+            document.getElementById('promptContent').value = '';
+        }
+
+        function savePrompt() {
+            const title = document.getElementById('promptTitle').value.trim();
+            const content = document.getElementById('promptContent').value.trim();
+
+            if (!title) {
+                alert('请输入标题');
+                return;
+            }
+
+            if (!content) {
+                alert('请输入提示词内容');
+                return;
+            }
+
+            // 检查是否已存在相同标题
+            if (promptCache.some(p => p.title === title)) {
+                if (!confirm('已存在相同标题的提示词，是否覆盖？')) {
+                    return;
+                }
+                // 删除旧的
+                promptCache = promptCache.filter(p => p.title !== title);
+            }
+
+            // 添加新提示词
+            promptCache.unshift({
+                id: Date.now(),
+                title: title,
+                content: content,
+                createdAt: new Date().toLocaleString()
+            });
+
+            // 保存到localStorage
+            saveToLocalStorage();
+
+            // 重新渲染列表
+            renderPromptList();
+
+            // 隐藏表单
+            cancelAddPrompt();
+
+            showSuccess(`提示词 "${title}" 已保存`);
+        }
+
+        function renderPromptList() {
+            const listContainer = document.getElementById('promptList');
+
+            if (promptCache.length === 0) {
+                listContainer.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">暂无保存的提示词</div>';
+                return;
+            }
+
+            listContainer.innerHTML = promptCache.map(prompt => `
+                <div class="prompt-item" onclick="applyPrompt('${prompt.id}')">
+                    <div class="prompt-title">${escapeHtml(prompt.title)}</div>
+                    <div class="prompt-content">${escapeHtml(prompt.content.substring(0, 100))}${prompt.content.length > 100 ? '...' : ''}</div>
+                    <button class="prompt-delete" onclick="event.stopPropagation(); deletePrompt('${prompt.id}')" title="删除">×</button>
+                </div>
+            `).join('');
+        }
+
+        function applyPrompt(promptId) {
+            const prompt = promptCache.find(p => p.id == promptId);
+            if (prompt) {
+                document.getElementById('editPrompt').value = prompt.content;
+                saveToLocalStorage(); // 保存应用的提示词
+                showSuccess(`已应用提示词: ${prompt.title}`);
+
+                // 高亮选中的提示词
+                document.querySelectorAll('.prompt-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                event.target.closest('.prompt-item').classList.add('active');
+            }
+        }
+
+        function deletePrompt(promptId) {
+            const prompt = promptCache.find(p => p.id == promptId);
+            if (prompt && confirm(`确定要删除提示词 "${prompt.title}" 吗？`)) {
+                promptCache = promptCache.filter(p => p.id != promptId);
+                saveToLocalStorage();
+                renderPromptList();
+                showSuccess('提示词已删除');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 初始化默认提示词
+        function initDefaultPrompts() {
+            if (promptCache.length === 0) {
+                promptCache = [
+                    {
+                        id: 1,
+                        title: "🎨 创意合成",
+                        content: "请将这些图片创意合成为一张图片，保持自然和谐的效果",
+                        createdAt: new Date().toLocaleString()
+                    },
+                    {
+                        id: 2,
+                        title: "🌟 添加特效",
+                        content: "为图片添加梦幻的光效和粒子特效，营造魔法般的氛围",
+                        createdAt: new Date().toLocaleString()
+                    },
+                    {
+                        id: 3,
+                        title: "🎭 风格转换",
+                        content: "将图片转换为油画风格，色彩丰富，笔触明显",
+                        createdAt: new Date().toLocaleString()
+                    },
+                    {
+                        id: 4,
+                        title: "🌈 色彩增强",
+                        content: "增强图片的色彩饱和度和对比度，让画面更加生动鲜艳",
+                        createdAt: new Date().toLocaleString()
+                    },
+                    {
+                        id: 5,
+                        title: "🏞️ 背景替换",
+                        content: "保持主体不变，将背景替换为美丽的自然风景",
+                        createdAt: new Date().toLocaleString()
+                    }
+                ];
+                saveToLocalStorage();
+                renderPromptList();
+            }
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('AI图片编辑器已加载完成');
+
+            // 恢复保存的数据
+            loadFromLocalStorage();
+
+            // 初始化默认提示词
+            initDefaultPrompts();
+
+            // 监听输入变化，自动保存
+            document.getElementById('apiKey').addEventListener('input', saveToLocalStorage);
+            document.getElementById('editPrompt').addEventListener('input', saveToLocalStorage);
+        });
+    </script>
+</body>
+</html>
