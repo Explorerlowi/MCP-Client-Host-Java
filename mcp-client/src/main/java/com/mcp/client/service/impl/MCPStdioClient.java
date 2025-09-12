@@ -279,25 +279,25 @@ public class MCPStdioClient extends AbstractMCPClient {
         }
     }
 
-	    /**
-	     * 发送通知（不等待响应）
-	     */
-	    private void sendNotification(JsonNode notification) throws McpConnectionException {
-	        if (!isProcessAlive()) {
-	            throw new McpConnectionException("MCP 服务器进程已终止");
-	        }
+    /**
+     * 发送通知（不等待响应）
+     */
+    private void sendNotification(JsonNode notification) throws McpConnectionException {
+        if (!isProcessAlive()) {
+            throw new McpConnectionException("MCP 服务器进程已终止");
+        }
 
-	        try {
-	            String notificationStr = notification.toString();
-	            log.debug("发送 MCP 通知 [{}]: {}", spec.getId(), notificationStr);
-	            writer.write(notificationStr);
-	            writer.newLine();
-	            writer.flush();
-	        } catch (IOException e) {
-	            log.error("发送 MCP 通知失败: {}", spec.getId(), e);
-	            throw new McpConnectionException("发送通知失败", e);
-	        }
-	    }
+        try {
+            String notificationStr = notification.toString();
+            log.debug("发送 MCP 通知 [{}]: {}", spec.getId(), notificationStr);
+            writer.write(notificationStr);
+            writer.newLine();
+            writer.flush();
+        } catch (IOException e) {
+            log.error("发送 MCP 通知失败: {}", spec.getId(), e);
+            throw new McpConnectionException("发送通知失败", e);
+        }
+    }
     
     @Override
     public MCPToolResult callTool(String toolName, Map<String, String> arguments) {

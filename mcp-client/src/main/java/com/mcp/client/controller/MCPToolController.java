@@ -4,6 +4,9 @@ import com.mcp.client.model.MCPTool;
 import com.mcp.client.model.MCPToolResult;
 import com.mcp.client.service.MCPServerRegistry;
 import com.mcp.client.service.impl.MCPClientServiceImpl;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -112,62 +115,37 @@ public class MCPToolController {
     /**
      * 工具调用请求 DTO
      */
+    @Data
     public static class MCPToolCallRequest {
         private String serverName;
         private String toolName;
         private Map<String, String> arguments;
-        
-        // Constructors
-        public MCPToolCallRequest() {}
-        
-        public MCPToolCallRequest(String serverName, String toolName, Map<String, String> arguments) {
-            this.serverName = serverName;
-            this.toolName = toolName;
-            this.arguments = arguments;
-        }
-        
-        // Getters and Setters
-        public String getServerName() { return serverName; }
-        public void setServerName(String serverName) { this.serverName = serverName; }
-        
-        public String getToolName() { return toolName; }
-        public void setToolName(String toolName) { this.toolName = toolName; }
-        
-        public Map<String, String> getArguments() { return arguments; }
-        public void setArguments(Map<String, String> arguments) { this.arguments = arguments; }
     }
     
     /**
      * 工具调用响应 DTO
      */
+    @Setter
+    @Getter
     public static class MCPToolCallResponse {
+        // Getters and Setters
         private boolean success;
         private String result;
         private String error;
-        
+
         // Constructors
         public MCPToolCallResponse() {}
-        
+
         private MCPToolCallResponse(Builder builder) {
             this.success = builder.success;
             this.result = builder.result;
             this.error = builder.error;
         }
-        
+
         public static Builder builder() {
             return new Builder();
         }
-        
-        // Getters and Setters
-        public boolean isSuccess() { return success; }
-        public void setSuccess(boolean success) { this.success = success; }
-        
-        public String getResult() { return result; }
-        public void setResult(String result) { this.result = result; }
-        
-        public String getError() { return error; }
-        public void setError(String error) { this.error = error; }
-        
+
         public static class Builder {
             private boolean success;
             private String result;

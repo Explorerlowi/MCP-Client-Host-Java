@@ -109,18 +109,7 @@ export class ServerApiService {
     }
   }
 
-  /**
-   * 测试服务器连接
-   */
-  static async testServerConnection(serverId: string): Promise<string> {
-    try {
-      const response = await axios.post<string>(`${API_BASE_URL}/${serverId}/test`);
-      return response.data;
-    } catch (error) {
-      console.error('测试服务器连接失败:', error);
-      throw new Error('测试服务器连接失败');
-    }
-  }
+
 
   /**
    * 获取连接统计信息
@@ -135,25 +124,14 @@ export class ServerApiService {
     }
   }
 
-  /**
-   * 健康检查
-   */
-  static async ping(): Promise<{ status: string; service: string; timestamp: string }> {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/ping`);
-      return response.data;
-    } catch (error) {
-      console.error('健康检查失败:', error);
-      throw new Error('健康检查失败');
-    }
-  }
+
 
   /**
    * 从JSON配置导入服务器
    */
-  static async importFromJson(jsonConfig: string): Promise<{ status: string; message: string }> {
+  static async importFromJson(jsonConfig: string): Promise<{ status: string; message: string; loadedCount: number }> {
     try {
-      const response = await axios.post<{ status: string; message: string }>('/api/mcp/config/load', jsonConfig, {
+      const response = await axios.post<{ status: string; message: string; loadedCount: number }>('/api/mcp/config/import', jsonConfig, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -164,6 +142,8 @@ export class ServerApiService {
       throw new Error('JSON配置导入失败');
     }
   }
+
+
 
   /**
    * 关闭服务器连接
@@ -191,18 +171,7 @@ export class ServerApiService {
     }
   }
 
-  /**
-   * 获取所有服务器的工具列表
-   */
-  static async getAllTools(): Promise<MCPTool[]> {
-    try {
-      const response = await axios.get<MCPTool[]>(`/api/mcp/servers/tools`);
-      return response.data;
-    } catch (error) {
-      console.error('获取所有工具列表失败:', error);
-      throw new Error('获取所有工具列表失败');
-    }
-  }
+
 
   /**
    * 获取服务器的资源列表
@@ -217,18 +186,7 @@ export class ServerApiService {
     }
   }
 
-  /**
-   * 获取所有服务器的资源列表
-   */
-  static async getAllResources(): Promise<MCPResource[]> {
-    try {
-      const response = await axios.get<MCPResource[]>(`/api/mcp/servers/resources`);
-      return response.data;
-    } catch (error) {
-      console.error('获取所有资源列表失败:', error);
-      throw new Error('获取所有资源列表失败');
-    }
-  }
+
 
   /**
    * 获取服务器的提示模板列表
@@ -240,19 +198,6 @@ export class ServerApiService {
     } catch (error) {
       console.error('获取服务器提示模板列表失败:', error);
       throw new Error('获取服务器提示模板列表失败');
-    }
-  }
-
-  /**
-   * 获取所有服务器的提示模板列表
-   */
-  static async getAllPrompts(): Promise<MCPPrompt[]> {
-    try {
-      const response = await axios.get<MCPPrompt[]>(`/api/mcp/servers/prompts`);
-      return response.data;
-    } catch (error) {
-      console.error('获取所有提示模板列表失败:', error);
-      throw new Error('获取所有提示模板列表失败');
     }
   }
 }

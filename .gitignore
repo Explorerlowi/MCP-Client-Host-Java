@@ -16,7 +16,6 @@ logs/
 **/application.yaml
 **/application-*.yml
 **/application-*.yaml
-mcp-config.json
 
 # IDE 文件 (保留 .cursor 和 .kiro)
 .idea/

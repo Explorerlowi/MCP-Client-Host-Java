@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "tavily-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "your-api-key-here"
+      },
+      "disabled": false,
+      "description": "Tavily 搜索工具",
+      "timeout": 60
+    },
+    "weather-mcp": {
+      "command": "npx",
+      "args": [
+        "weather-mcp-server"
+      ],
+      "env": {
+        "WEATHER_API_KEY": "your-weather-api-key"
+      },
+      "disabled": false,
+      "description": "天气查询工具",
+      "timeout": 30
+    },
+    "file-manager": {
+      "url": "http://localhost:3001/mcp",
+      "type": "streamablehttp",
+      "disabled": false,
+      "description": "文件管理服务",
+      "timeout": 45
+    }
+  }
+}

@@ -49,12 +49,32 @@ MCP Client 使用 H2 内存数据库，通常不需要修改配置。如需自�
 
 #### MCP 服务器配置
 
-复制配置模板并修改：
-```bash
-cp mcp-config.json.example mcp-config.json
-```
+MCP 服务器配置现在直接存储在数据库中，可以通过前端界面进行配置和管理。系统会自动初始化一些默认的服务器配置。
 
-可在 `mcp-config.json` 中配置你的MCP服务器，也可在前端界面中进行配置。
+**配置方式**：
+1. **Web 界面管理**：通过前端界面添加、编辑、删除服务器配置
+2. **JSON 导入**：支持导入标准的 MCP 服务器配置格式
+
+**JSON 配置格式示例**：
+```json
+{
+  "mcpServers": {
+    "tavily-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "your-api-key-here"
+      },
+      "disabled": false,
+      "description": "Tavily 搜索工具",
+      "timeout": 60
+    }
+  }
+}
+```
 
 ### 3. 构建项目
 

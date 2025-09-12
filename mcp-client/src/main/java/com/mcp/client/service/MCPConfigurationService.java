@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -56,28 +55,6 @@ public class MCPConfigurationService {
     }
 
     /**
-     * 从文件迁移配置到数据库
-     * @param configFile 配置文件路径
-     */
-    public void migrateFromFile(String configFile) {
-        try {
-            File file = new File(configFile);
-            if (!file.exists()) {
-                log.warn("配置文件不存在: {}", configFile);
-                return;
-            }
-
-            MCPServerConfig config = objectMapper.readValue(file, MCPServerConfig.class);
-            int migratedCount = loadConfiguration(config);
-            log.info("成功从文件迁移 {} 个服务器配置到数据库", migratedCount);
-
-        } catch (IOException e) {
-            log.error("迁移配置文件失败: {}", configFile, e);
-            throw new RuntimeException("配置文件迁移失败", e);
-        }
-    }
-    
-    /**
      * 从 JSON 字符串加载配置
      * @param jsonConfig JSON 配置字符串
      * @return 加载的服务器数量
@@ -92,7 +69,7 @@ public class MCPConfigurationService {
             throw new RuntimeException("JSON 配置解析失败", e);
         }
     }
-    
+
     /**
      * 加载配置对象
      * @param config 配置对象
@@ -122,7 +99,7 @@ public class MCPConfigurationService {
 
         return loadedCount;
     }
-    
+
     /**
      * 将配置转换为服务器规格
      * @param serverId 服务器ID
@@ -132,18 +109,26 @@ public class MCPConfigurationService {
     private McpServerSpec convertToServerSpec(String serverId, MCPServerConfig.ServerConfig config) {
         // 确定传输类型
         TransportType transportType = determineTransportType(config);
-        
+
         // 构建服务器规格
         McpServerSpec.McpServerSpecBuilder builder = McpServerSpec.builder()
                 .id(serverId)
+                .name(serverId) // 使用 ID 作为默认名称
                 .type(transportType)
                 .disabled(config.isDisabled());
-        
+
+        // 设置描述
+        if (config.getDescription() != null) {
+            builder.description(config.getDescription());
+        }
+
         // 设置超时时间（秒）
         if (config.getTimeout() != null) {
             builder.timeout(config.getTimeout());
+        } else {
+            builder.timeout(60L); // 默认 60 秒
         }
-        
+
         // 根据传输类型设置相应的配置
         switch (transportType) {
             case STDIO:
@@ -158,7 +143,7 @@ public class MCPConfigurationService {
                     builder.env(config.getEnv());
                 }
                 break;
-                
+
             case SSE:
             case STREAMABLEHTTP:
                 if (config.getUrl() == null) {
@@ -166,14 +151,14 @@ public class MCPConfigurationService {
                 }
                 builder.url(config.getUrl());
                 break;
-                
+
             default:
                 throw new IllegalArgumentException("不支持的传输类型: " + transportType);
         }
-        
+
         return builder.build();
     }
-    
+
     /**
      * 确定传输类型
      * @param config 服务器配置
@@ -191,7 +176,7 @@ public class MCPConfigurationService {
                 default -> throw new IllegalArgumentException("不支持的传输类型: " + transportValue);
             };
         }
-        
+
         // 根据配置自动推断传输类型
         if (config.getCommand() != null) {
             return TransportType.STDIO;
@@ -202,11 +187,9 @@ public class MCPConfigurationService {
                 return TransportType.STREAMABLEHTTP;
             }
         }
-        
+
         // 默认使用 STDIO
         return TransportType.STDIO;
     }
-    
-
 
 }

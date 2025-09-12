@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
@@ -33,7 +33,20 @@ const JsonImportForm: React.FC<JsonImportFormProps> = ({
         "TAVILY_API_KEY": "your-api-key-here"
       },
       "disabled": false,
-      "autoApprove": []
+      "description": "Tavily 搜索工具",
+      "timeout": 60
+    },
+    "weather-mcp": {
+      "command": "npx",
+      "args": [
+        "weather-mcp-server"
+      ],
+      "env": {
+        "WEATHER_API_KEY": "your-weather-api-key"
+      },
+      "disabled": false,
+      "description": "天气查询工具",
+      "timeout": 30
     }
   }
 }`;
@@ -66,93 +79,92 @@ const JsonImportForm: React.FC<JsonImportFormProps> = ({
     setError('');
   };
 
+  const handleClose = () => {
+    if (!isLoading) {
+      setJsonConfig('');
+      setError('');
+      onOpenChange(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-        {/* 顶部装饰条 */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-cyan-400 shadow-[0_0_10px_rgba(0,255,170,0.6)]"></div>
-        
-        <DialogHeader className="pb-4">
-          <DialogTitle className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-lg shadow-[0_0_15px_rgba(0,255,170,0.5)] flex items-center justify-center">
-              <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
-              </svg>
-            </div>
-            <span>JSON配置导入</span>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-slate-950/95 border border-cyan-400/30 shadow-[0_0_30px_rgba(0,255,170,0.2)]">
+        <DialogHeader>
+          <DialogTitle className="text-cyan-300 font-['Orbitron'] text-xl">
+            JSON 配置导入
           </DialogTitle>
-          <DialogDescription>
-            粘贴您的MCP服务器JSON配置，系统将自动解析并添加服务器。
-          </DialogDescription>
         </DialogHeader>
-
-        <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
-          {/* 操作按钮 */}
-          <div className="flex space-x-3">
-            <Button
-              type="button"
-              onClick={handleUseExample}
-              disabled={isLoading}
-              variant="outline"
-              className="bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-500/50 text-cyan-300"
-            >
-              使用示例配置
-            </Button>
-            <Button
-              type="button"
-              onClick={handleClear}
-              disabled={isLoading}
-              variant="outline"
-              className="bg-orange-500/20 hover:bg-orange-500/30 border-orange-500/50 text-orange-300"
-            >
-              清空
-            </Button>
+        
+        <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+          <div className="space-y-3">
+            <p className="text-slate-300 text-sm leading-relaxed">
+              支持导入标准的 MCP 服务器配置格式。请粘贴您的 JSON 配置，系统会自动解析并添加服务器。
+            </p>
+            
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleUseExample}
+                disabled={isLoading}
+                className="border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/10"
+              >
+                使用示例配置
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClear}
+                disabled={isLoading}
+                className="border-red-400/30 text-red-300 hover:bg-red-400/10"
+              >
+                清空
+              </Button>
+            </div>
           </div>
 
-          {/* JSON配置区域 */}
-          <div className="flex-1 flex flex-col space-y-2">
-            <Label htmlFor="jsonConfig">JSON配置 *</Label>
-            <Textarea
-              id="jsonConfig"
-              value={jsonConfig}
-              onChange={(e) => setJsonConfig(e.target.value)}
-              disabled={isLoading}
-              className={`flex-1 resize-none font-mono text-sm ${
-                error 
-                  ? 'border-red-500/50 bg-red-500/10 focus-visible:ring-red-500' 
-                  : 'border-cyan-500/30 bg-slate-900/50 focus-visible:ring-cyan-500'
-              }`}
-              placeholder="请粘贴您的JSON配置..."
-            />
-            {error && (
-              <div className="text-red-400 text-sm flex items-center space-x-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                </svg>
-                <span>{error}</span>
-              </div>
-            )}
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="jsonConfig" className="text-slate-300 font-medium">
+                JSON 配置 *
+              </Label>
+              <Textarea
+                id="jsonConfig"
+                value={jsonConfig}
+                onChange={(e) => setJsonConfig(e.target.value)}
+                placeholder="请粘贴您的 MCP 服务器 JSON 配置..."
+                disabled={isLoading}
+                className={`min-h-[400px] font-mono text-sm bg-slate-900/50 border-slate-600/50 text-slate-200 placeholder-slate-500 focus:border-cyan-400/50 focus:ring-cyan-400/20 ${
+                  error ? 'border-red-400/50' : ''
+                }`}
+              />
+              {error && (
+                <p className="text-red-400 text-sm">{error}</p>
+              )}
+            </div>
 
-          {/* 底部按钮 */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-cyan-400/20">
-            <Button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              disabled={isLoading}
-              variant="outline"
-              className="bg-slate-800/50 hover:bg-slate-700/50 border-slate-600 text-slate-300"
-            >
-              取消
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-600 hover:to-emerald-600 text-black font-medium shadow-[0_0_15px_rgba(0,255,170,0.5)]"
-            >
-              {isLoading ? '导入中...' : '导入配置'}
-            </Button>
-          </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-700/50">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={isLoading}
+                className="border-slate-600/50 text-slate-300 hover:bg-slate-700/50"
+              >
+                取消
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading || !jsonConfig.trim()}
+                className="bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(0,255,170,0.3)]"
+              >
+                {isLoading ? '导入中...' : '导入配置'}
+              </Button>
+            </div>
+          </form>
         </div>
       </DialogContent>
     </Dialog>
