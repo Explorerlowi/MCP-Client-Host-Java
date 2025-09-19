@@ -41,7 +41,9 @@ public abstract class AbstractMCPClient implements MCPClient {
         this.spec = spec;
         this.objectMapper = new ObjectMapper();
     }
-    
+
+    // ==================== 连接状态相关函数 ====================
+
     @Override
     public MCPServerInfo getServerInfo() {
         return MCPServerInfo.builder()
@@ -60,7 +62,9 @@ public abstract class AbstractMCPClient implements MCPClient {
     public boolean isConnected() {
         return connected.get();
     }
-    
+
+    // ==================== 请求构建相关函数 ====================
+
     /**
      * 构建工具调用的 JSON-RPC 请求
      */
@@ -211,6 +215,8 @@ public abstract class AbstractMCPClient implements MCPClient {
         request.set("params", objectMapper.createObjectNode());
         return request;
     }
+
+    // ==================== 响应解析相关函数 ====================
     
     /**
      * 构建生成提示的 JSON-RPC 请求
@@ -744,6 +750,8 @@ public abstract class AbstractMCPClient implements MCPClient {
         return "";
     }
     
+    // ==================== 资源管理相关函数 ====================
+
     /**
      * 实现资源列表获取（子类可重写）
      */
@@ -836,6 +844,8 @@ public abstract class AbstractMCPClient implements MCPClient {
         }
     }
     
+    // ==================== 抽象方法定义 ====================
+
     /**
      * 验证 JSON-RPC 响应
      */

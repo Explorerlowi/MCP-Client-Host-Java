@@ -19,12 +19,7 @@ public interface MCPClient {
      * @return 连接状态
      */
     boolean isConnected();
-    
-    /**
-     * 连接到 MCP 服务器
-     */
-    void connect();
-    
+
     /**
      * 断开与 MCP 服务器的连接
      */

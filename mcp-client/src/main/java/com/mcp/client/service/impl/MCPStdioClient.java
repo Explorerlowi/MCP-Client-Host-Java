@@ -28,7 +28,9 @@ public class MCPStdioClient extends AbstractMCPClient {
         super(spec);
         initializeProcess();
     }
-    
+
+    // ==================== 连接建立相关函数 ====================
+
     /**
      * 初始化子进程
      */
@@ -96,6 +98,52 @@ public class MCPStdioClient extends AbstractMCPClient {
         errorMonitor.setName("MCP-ErrorMonitor-" + spec.getId());
         errorMonitor.start();
     }
+
+    @Override
+    protected void performHandshake() throws McpConnectionException {
+        try {
+            log.debug("开始 MCP 握手协议: {}", spec.getId());
+
+            // 发送初始化请求
+            JsonNode initRequest = buildInitializeRequest();
+            JsonNode initResponse = sendRequest(initRequest);
+
+            validateResponse(initResponse);
+
+            // 解析服务器能力信息
+            parseInitializeResponse(initResponse);
+
+	            // 发送 notifications/initialized 通知（STDIO 下通知不等待响应）
+	            JsonNode initializedNotification = buildInitializedNotification();
+	            try {
+	                sendNotification(initializedNotification);
+	                log.debug("已发送 notifications/initialized 通知 [{}]", spec.getId());
+	            } catch (McpConnectionException e) {
+	                // 某些服务器可能不会返回任何内容，发送失败在此记录即可
+	                log.debug("发送 notifications/initialized 通知时收到异常 [{}]: {}", spec.getId(), e.getMessage());
+	            }
+
+            log.debug("MCP 握手协议完成: {}", spec.getId());
+
+        } catch (Exception e) {
+            log.error("MCP 握手协议失败: {}", spec.getId(), e);
+            throw new McpConnectionException("握手协议失败", e);
+        }
+    }
+
+    @Override
+    public boolean isConnected() {
+        return connected.get() && isProcessAlive();
+    }
+
+    /**
+     * 检查进程是否存活
+     */
+    private boolean isProcessAlive() {
+        return process != null && process.isAlive();
+    }
+
+    // ==================== 消息传输相关函数 ====================
 
     /**
      * 读取JSON响应，跳过非JSON行（如Banner、日志等）
@@ -215,35 +263,48 @@ public class MCPStdioClient extends AbstractMCPClient {
         }
     }
     
+    // ==================== 工具调用相关函数 ====================
+
     @Override
-    protected void performHandshake() throws McpConnectionException {
+    public MCPToolResult callTool(String toolName, Map<String, String> arguments) {
         try {
-            log.debug("开始 MCP 握手协议: {}", spec.getId());
-            
-            // 发送初始化请求
-            JsonNode initRequest = buildInitializeRequest();
-            JsonNode initResponse = sendRequest(initRequest);
-            
-            validateResponse(initResponse);
-            
-            // 解析服务器能力信息
-            parseInitializeResponse(initResponse);
-	            
-	            // 发送 notifications/initialized 通知（STDIO 下通知不等待响应）
-	            JsonNode initializedNotification = buildInitializedNotification();
-	            try {
-	                sendNotification(initializedNotification);
-	                log.debug("已发送 notifications/initialized 通知 [{}]", spec.getId());
-	            } catch (McpConnectionException e) {
-	                // 某些服务器可能不会返回任何内容，发送失败在此记录即可
-	                log.debug("发送 notifications/initialized 通知时收到异常 [{}]: {}", spec.getId(), e.getMessage());
-	            }
-            
-            log.debug("MCP 握手协议完成: {}", spec.getId());
-            
+            log.debug("调用 MCP 工具 [{}]: {} with args: {}", spec.getId(), toolName, arguments);
+
+            JsonNode request = buildToolCallRequest(toolName, arguments);
+            JsonNode response = sendRequest(request);
+
+            MCPToolResult result = parseToolResult(response, toolName);
+            log.debug("MCP 工具调用结果 [{}]: success={}", spec.getId(), result.isSuccess());
+
+            return result;
+
         } catch (Exception e) {
-            log.error("MCP 握手协议失败: {}", spec.getId(), e);
-            throw new McpConnectionException("握手协议失败", e);
+            log.error("调用 MCP 工具失败 [{}]: {}", spec.getId(), toolName, e);
+            return MCPToolResult.builder()
+                    .success(false)
+                    .error("工具调用失败: " + e.getMessage())
+                    .toolName(toolName)
+                    .serverName(spec.getId())
+                    .build();
+        }
+    }
+
+    @Override
+    public List<MCPTool> getTools() {
+        try {
+            log.debug("获取 MCP 工具列表: {}", spec.getId());
+
+            JsonNode request = buildListToolsRequest();
+            JsonNode response = sendRequest(request);
+
+            List<MCPTool> tools = parseToolsList(response);
+            log.debug("获取到 {} 个 MCP 工具: {}", tools.size(), spec.getId());
+
+            return tools;
+
+        } catch (Exception e) {
+            log.error("获取 MCP 工具列表失败: {}", spec.getId(), e);
+            return List.of();
         }
     }
     
@@ -298,60 +359,8 @@ public class MCPStdioClient extends AbstractMCPClient {
             throw new McpConnectionException("发送通知失败", e);
         }
     }
-    
-    @Override
-    public MCPToolResult callTool(String toolName, Map<String, String> arguments) {
-        try {
-            log.debug("调用 MCP 工具 [{}]: {} with args: {}", spec.getId(), toolName, arguments);
-            
-            JsonNode request = buildToolCallRequest(toolName, arguments);
-            JsonNode response = sendRequest(request);
-            
-            MCPToolResult result = parseToolResult(response, toolName);
-            log.debug("MCP 工具调用结果 [{}]: success={}", spec.getId(), result.isSuccess());
-            
-            return result;
-            
-        } catch (Exception e) {
-            log.error("调用 MCP 工具失败 [{}]: {}", spec.getId(), toolName, e);
-            return MCPToolResult.builder()
-                    .success(false)
-                    .error("工具调用失败: " + e.getMessage())
-                    .toolName(toolName)
-                    .serverName(spec.getId())
-                    .build();
-        }
-    }
-    
-    @Override
-    public List<MCPTool> getTools() {
-        try {
-            log.debug("获取 MCP 工具列表: {}", spec.getId());
-            
-            JsonNode request = buildListToolsRequest();
-            JsonNode response = sendRequest(request);
-            
-            List<MCPTool> tools = parseToolsList(response);
-            log.debug("获取到 {} 个 MCP 工具: {}", tools.size(), spec.getId());
-            
-            return tools;
-            
-        } catch (Exception e) {
-            log.error("获取 MCP 工具列表失败: {}", spec.getId(), e);
-            return List.of();
-        }
-    }
-    
-    @Override
-    public void connect() {
-        if (isConnected()) {
-            log.debug("MCP STDIO 客户端已连接: {}", spec.getId());
-            return;
-        }
 
-        log.info("连接 MCP STDIO 客户端: {}", spec.getId());
-        initializeProcess();
-    }
+    // ==================== 连接关闭与清理相关函数 ====================
 
     @Override
     public void disconnect() {
@@ -382,18 +391,6 @@ public class MCPStdioClient extends AbstractMCPClient {
                 process.destroyForcibly();
             }
         }
-    }
-
-    @Override
-    public boolean isConnected() {
-        return connected.get() && isProcessAlive();
-    }
-
-    /**
-     * 检查进程是否存活
-     */
-    private boolean isProcessAlive() {
-        return process != null && process.isAlive();
     }
 
     @Override
