@@ -9,6 +9,7 @@ import com.mcp.client.model.MCPToolResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -35,10 +36,12 @@ public class MCPSseClient extends AbstractMCPClient {
 
     private final WebClient webClient;
     private final Map<Long, CompletableFuture<JsonNode>> pendingRequests = new ConcurrentHashMap<>();
+    private Disposable sseSubscription;
     private Flux<String> eventStream;
-    private volatile boolean shouldReconnect = true;
     private volatile String messageEndpointUri; // 用于 POST 消息的专用 URI
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>(); // 连接就绪信号
+
+    private volatile boolean shouldReconnect = true;
     private volatile int reconnectAttempts = 0; // 重连尝试次数
     private volatile boolean isReconnecting = false; // 防止并发重连
     private static final int MAX_RETRY_ATTEMPTS = 3;
@@ -60,7 +63,7 @@ public class MCPSseClient extends AbstractMCPClient {
                 .defaultHeader("Cache-Control", "no-cache")
                 .build();
 
-        // 初始化时间记录
+        // 初始化心跳时间记录
         lastHeartbeatTime = System.currentTimeMillis();
 
         // 初始化心跳线程池
@@ -97,10 +100,16 @@ public class MCPSseClient extends AbstractMCPClient {
                     .doOnComplete(() -> {
                         log.info("SSE 连接已关闭: {}", spec.getId());
                         connected.set(false);
+                        pendingRequests.values().forEach(f ->
+                                f.completeExceptionally(new McpConnectionException("连接已关闭")));
+                        pendingRequests.clear();
+                        if (shouldReconnect && !isReconnecting) {
+                            attemptReconnection();
+                        }
                     });
 
             // 订阅事件流
-            eventStream.subscribe();
+            this.sseSubscription = eventStream.subscribe();
 
             log.info("MCP SSE 客户端初始化成功: {}", spec.getId());
 
@@ -140,6 +149,13 @@ public class MCPSseClient extends AbstractMCPClient {
         }
     }
 
+    /**
+     * 执行 MCP SSE 握手协议
+     * 1. 检查消息端点是否已获取
+     * 2. 发送 initialize 请求
+     * 3. 解析服务器能力信息
+     * 4. 发送 notifications/initialized 通知
+     */
     @Override
     protected void performHandshake() throws McpConnectionException {
         try {
@@ -171,6 +187,13 @@ public class MCPSseClient extends AbstractMCPClient {
         }
     }
 
+    /**
+     * 检查 MCP SSE 客户端是否已连接
+     * 连接状态包括：
+     * 1. 基本连接状态（connected 标志）
+     * 2. 消息端点 URI 是否已获取
+     * 3. 心跳检测（如果启用）
+     */
     @Override
     public boolean isConnected() {
         // 基本连接状态检查
@@ -424,13 +447,53 @@ public class MCPSseClient extends AbstractMCPClient {
 
         } catch (TimeoutException e) {
             log.error("MCP SSE 请求超时 [{}]", spec.getId());
+            pendingRequests.remove(request.get("id").asLong());
             throw new McpConnectionException("请求超时", e);
         } catch (Exception e) {
             log.error("发送 MCP SSE 请求失败 [{}]", spec.getId(), e);
+            pendingRequests.remove(request.get("id").asLong());
             throw new McpConnectionException("发送请求失败", e);
         }
     }
-    
+
+    /**
+     * 内部发送通知方法，不等待连接就绪（用于握手协议）
+     */
+    private void sendNotificationInternal(JsonNode notification) throws McpConnectionException {
+        if (!connected.get()) {
+            throw new McpConnectionException("SSE 连接未建立");
+        }
+
+        if (messageEndpointUri == null) {
+            throw new McpConnectionException("消息端点 URI 未获取");
+        }
+
+        try {
+            log.debug("发送 MCP SSE 通知 [{}]: {}", spec.getId(), notification.toString());
+
+            // 计算正确的请求URI
+            String requestUri = calculateRequestUri(messageEndpointUri);
+            log.debug("使用通知URI [{}]: {}", spec.getId(), requestUri);
+
+            // 通过 POST 请求发送通知到专用消息端点
+            webClient.post()
+                    .uri(requestUri)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(notification.toString())
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .subscribe(
+                            response -> log.debug("通知已发送 [{}]", spec.getId()),
+                            error -> log.error("发送通知失败 [{}]: {}", spec.getId(), error.getMessage())
+                    );
+
+        } catch (Exception e) {
+            log.error("发送 MCP SSE 通知失败 [{}]", spec.getId(), e);
+            throw new McpConnectionException("发送通知失败", e);
+        }
+    }
+
+
     // ==================== 连接重试与恢复相关函数 ====================
 
     /**
@@ -572,8 +635,8 @@ public class MCPSseClient extends AbstractMCPClient {
         pendingRequests.clear();
 
         // 关闭事件流
-        if (eventStream != null) {
-            // WebClient 会自动清理资源
+        if (sseSubscription != null && !sseSubscription.isDisposed()) {
+            sseSubscription.dispose();
         }
     }
 
@@ -842,43 +905,4 @@ public class MCPSseClient extends AbstractMCPClient {
             return serverBase + messageEndpointUri;
         }
     }
-
-    /**
-     * 内部发送通知方法，不等待连接就绪（用于握手协议）
-     */
-    private void sendNotificationInternal(JsonNode notification) throws McpConnectionException {
-        if (!connected.get()) {
-            throw new McpConnectionException("SSE 连接未建立");
-        }
-
-        if (messageEndpointUri == null) {
-            throw new McpConnectionException("消息端点 URI 未获取");
-        }
-
-        try {
-            log.debug("发送 MCP SSE 通知 [{}]: {}", spec.getId(), notification.toString());
-
-            // 计算正确的请求URI
-            String requestUri = calculateRequestUri(messageEndpointUri);
-            log.debug("使用通知URI [{}]: {}", spec.getId(), requestUri);
-
-            // 通过 POST 请求发送通知到专用消息端点
-            webClient.post()
-                    .uri(requestUri)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(notification.toString())
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .subscribe(
-                        response -> log.debug("通知已发送 [{}]", spec.getId()),
-                        error -> log.error("发送通知失败 [{}]: {}", spec.getId(), error.getMessage())
-                    );
-
-        } catch (Exception e) {
-            log.error("发送 MCP SSE 通知失败 [{}]", spec.getId(), e);
-            throw new McpConnectionException("发送通知失败", e);
-        }
-    }
-    
-
 }

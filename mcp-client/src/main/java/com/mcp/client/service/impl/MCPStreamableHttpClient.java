@@ -33,11 +33,13 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
     private Flux<String> eventStream;
     private volatile long lastEventId = 0;
     private volatile boolean supportsResume = false;
+
+    private volatile boolean isReconnecting = false;
+
     // 保活检测
     private volatile ScheduledExecutorService heartbeatExecutor;
-    private volatile boolean heartbeatEnabled = true;
     private volatile long lastHeartbeatTime = 0;
-    private volatile boolean isReconnecting = false;
+    private volatile boolean heartbeatEnabled = true;
     private static final long HEARTBEAT_INTERVAL_MS = 60000; // 60秒
     private static final long HEARTBEAT_TIMEOUT_MS = 15000; // 15秒
     
@@ -52,6 +54,8 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
 
         // 初始化心跳时间记录
         lastHeartbeatTime = System.currentTimeMillis();
+
+        // 初始化心跳线程池
         createHeartbeatExecutor();
 
         establishConnection();
