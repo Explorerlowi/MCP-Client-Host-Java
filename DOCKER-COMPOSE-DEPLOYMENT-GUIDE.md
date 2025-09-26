@@ -51,7 +51,7 @@ docker-compose logs
 访问以下地址验证服务：
 - 前端界面：http://localhost:3000
 - MCP Host API：http://localhost:8080
-- MCP Client gRPC：localhost:9090
+- MCP Client gRPC：localhost:8686
 
 ## 🛠️ 常用管理命令
 
@@ -158,7 +158,7 @@ docker exec -it mcp-client ping mcp-host
 # 检查端口占用
 netstat -ano | findstr :3000
 netstat -ano | findstr :8080
-netstat -ano | findstr :9090
+netstat -ano | findstr :8686
 
 # Windows 杀死进程
 taskkill /PID <PID> /F
@@ -202,7 +202,7 @@ docker-compose logs mcp-client | grep "gRPC server started"
 docker exec -it mcp-host ping mcp-client
 
 # 验证端口监听
-docker exec -it mcp-client netstat -tlnp | grep 9090
+docker exec -it mcp-client netstat -tlnp | grep 8686
 ```
 
 ## 📊 性能监控

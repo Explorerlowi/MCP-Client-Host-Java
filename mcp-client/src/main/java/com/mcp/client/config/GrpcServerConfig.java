@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 public class GrpcServerConfig {
     
-    @Value("${grpc.server.port:9090}")
+    @Value("${grpc.server.port:8686}")
     private int grpcPort;
     
     @Autowired

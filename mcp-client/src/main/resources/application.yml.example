@@ -28,7 +28,7 @@ spring:
 # gRPC 配置
 grpc:
   server:
-    port: 9090
+    port: 8686
 
 # 日志配置
 logging:

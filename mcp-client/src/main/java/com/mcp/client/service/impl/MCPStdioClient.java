@@ -29,6 +29,16 @@ public class MCPStdioClient extends AbstractMCPClient {
         initializeProcess();
     }
 
+    /**
+     * 受保护的构造函数，允许子类控制初始化过程
+     */
+    protected MCPStdioClient(McpServerSpec spec, boolean autoInitialize) {
+        super(spec);
+        if (autoInitialize) {
+            initializeProcess();
+        }
+    }
+
     // ==================== 连接建立相关函数 ====================
 
     /**
@@ -88,7 +98,23 @@ public class MCPStdioClient extends AbstractMCPClient {
             try {
                 String line;
                 while ((line = errorReader.readLine()) != null) {
-                    log.warn("MCP 服务器错误输出 [{}]: {}", spec.getId(), line);
+                    // 根据内容类型选择合适的日志级别
+                    LogLevel logLevel = determineLogLevel(line);
+                    switch (logLevel) {
+                        case INFO:
+                            log.info("MCP 服务器输出 [{}]: {}", spec.getId(), line);
+                            break;
+                        case WARN:
+                            log.warn("MCP 服务器警告 [{}]: {}", spec.getId(), line);
+                            break;
+                        case ERROR:
+                            log.error("MCP 服务器错误 [{}]: {}", spec.getId(), line);
+                            break;
+                        case DEBUG:
+                        default:
+                            log.debug("MCP 服务器调试信息 [{}]: {}", spec.getId(), line);
+                            break;
+                    }
                 }
             } catch (IOException e) {
                 log.debug("错误流监控结束: {}", spec.getId());
@@ -97,6 +123,62 @@ public class MCPStdioClient extends AbstractMCPClient {
         errorMonitor.setDaemon(true);
         errorMonitor.setName("MCP-ErrorMonitor-" + spec.getId());
         errorMonitor.start();
+    }
+
+    /**
+     * 日志级别枚举
+     */
+    protected enum LogLevel {
+        DEBUG, INFO, WARN, ERROR
+    }
+
+    /**
+     * 根据输出内容确定合适的日志级别
+     */
+    protected LogLevel determineLogLevel(String line) {
+        if (line == null || line.trim().isEmpty()) {
+            return LogLevel.DEBUG;
+        }
+
+        String lowerLine = line.toLowerCase().trim();
+
+        // 错误级别的关键词
+        if (lowerLine.contains("error") ||
+            lowerLine.contains("exception") ||
+            lowerLine.contains("failed") ||
+            lowerLine.contains("failure") ||
+            lowerLine.contains("fatal") ||
+            lowerLine.contains("critical")) {
+            return LogLevel.ERROR;
+        }
+
+        // 警告级别的关键词
+        if (lowerLine.contains("warn") ||
+            lowerLine.contains("warning") ||
+            lowerLine.contains("deprecated") ||
+            lowerLine.contains("警告") ||
+            line.contains("警告")) { // 同时检查原始大小写，因为中文没有大小写区别
+            return LogLevel.WARN;
+        }
+
+        // 正常信息级别的关键词和模式
+        if (lowerLine.contains("started") ||
+            lowerLine.contains("启动") ||
+            lowerLine.contains("running") ||
+            lowerLine.contains("server") ||
+            lowerLine.contains("installed") ||
+            lowerLine.contains("packages") ||
+            lowerLine.contains("✅") ||
+            lowerLine.contains("成功") ||
+            lowerLine.contains("完成") ||
+            lowerLine.matches(".*\\d+.*packages.*in.*\\d+.*ms.*") || // 匹配 "Installed X packages in Yms" 模式
+            lowerLine.matches(".*server.*running.*") ||
+            lowerLine.matches(".*已启动.*")) {
+            return LogLevel.INFO;
+        }
+
+        // 默认为调试级别，避免过多噪音
+        return LogLevel.DEBUG;
     }
 
     @Override

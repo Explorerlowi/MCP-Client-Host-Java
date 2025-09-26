@@ -21,6 +21,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.annotation.PreDestroy;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -524,6 +525,34 @@ public class MCPServerRegistryImpl implements MCPServerRegistry {
 
         } catch (Exception e) {
             log.error("禁用失败服务器时发生错误: {}", serverId, e);
+        }
+    }
+
+    /**
+     * 应用关闭时清理所有 MCP 客户端连接
+     */
+    @PreDestroy
+    public void cleanup() {
+        log.info("应用关闭，开始清理所有 MCP 客户端连接");
+
+        try {
+            // 关闭所有客户端连接
+            for (Map.Entry<String, MCPClient> entry : clients.entrySet()) {
+                try {
+                    log.debug("关闭 MCP 客户端连接: {}", entry.getKey());
+                    entry.getValue().close();
+                    log.debug("已关闭 MCP 客户端连接: {}", entry.getKey());
+                } catch (Exception e) {
+                    log.warn("关闭 MCP 客户端连接时发生错误: {}", entry.getKey(), e);
+                }
+            }
+
+            // 清空内存
+            clients.clear();
+            log.info("所有 MCP 客户端连接已关闭");
+
+        } catch (Exception e) {
+            log.error("清理 MCP 客户端连接时发生错误", e);
         }
     }
 }

@@ -55,7 +55,7 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # MCP Client（REST:8086, 内部 gRPC:9090）
+  # MCP Client（REST:8086, 内部 gRPC:8686）
   mcp-client:
     build:
       context: ./mcp-client
@@ -76,7 +76,7 @@ services:
       TZ: ${TZ}
     ports:
       - "8086:8086"
-      # - "9090:9090"  # 仅当需要对外暴露 gRPC 时再放开
+      # - "8686:8686"  # 仅当需要对外暴露 gRPC 时再放开
     volumes:
       # 将 docker/application-docker-client.yml 挂成容器内 /app/config/application.yml
       - ./docker/application-docker-client.yml:/app/config/application.yml:ro

@@ -22,7 +22,7 @@ public class GrpcClientConfig {
     @Value("${mcp.client.grpc.host:localhost}")
     private String grpcHost;
 
-    @Value("${mcp.client.grpc.port:9090}")
+    @Value("${mcp.client.grpc.port:8686}")
     private int grpcPort;
 
     @Value("${mcp.client.grpc.timeout-seconds:120}")

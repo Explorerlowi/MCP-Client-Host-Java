@@ -8,20 +8,13 @@ import com.mcp.client.model.MCPTool;
 import com.mcp.client.model.MCPToolResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import org.springframework.http.MediaType;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 /**
  * SSE (Server-Sent Events) 传输协议的 MCP 客户端实现
@@ -50,6 +43,7 @@ public class MCPSseClient extends AbstractMCPClient {
     
     // 心跳检测相关
     private volatile ScheduledExecutorService heartbeatExecutor; // 心跳线程池，非final，允许重新创建
+    private volatile ScheduledFuture<?> heartbeatFuture; // 心跳任务句柄，用于防止重复调度
     private volatile long lastHeartbeatTime = 0; // 上次心跳时间
     private volatile boolean heartbeatEnabled = true; // 是否启用心跳检测
     private static final long HEARTBEAT_INTERVAL_MS = 60000; // 心跳间隔60秒
@@ -59,7 +53,6 @@ public class MCPSseClient extends AbstractMCPClient {
         super(spec);
         this.webClient = WebClient.builder()
                 .baseUrl(spec.getUrl())
-                .defaultHeader("Accept", "text/event-stream")
                 .defaultHeader("Cache-Control", "no-cache")
                 .build();
 
@@ -93,19 +86,15 @@ public class MCPSseClient extends AbstractMCPClient {
             // 建立 SSE 连接
             this.eventStream = webClient.get()
                     .uri(sseUri)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
                     .retrieve()
                     .bodyToFlux(String.class)
                     .doOnNext(this::handleServerEvent)
                     .doOnError(this::handleConnectionError)
                     .doOnComplete(() -> {
                         log.info("SSE 连接已关闭: {}", spec.getId());
-                        connected.set(false);
-                        pendingRequests.values().forEach(f ->
-                                f.completeExceptionally(new McpConnectionException("连接已关闭")));
-                        pendingRequests.clear();
-                        if (shouldReconnect && !isReconnecting) {
-                            attemptReconnection();
-                        }
+                        // 只有在应该重连的情况下才触发重连，避免应用关闭时的无效重连
+                        transitionToDisconnected(null, shouldReconnect, false);
                     });
 
             // 订阅事件流
@@ -115,7 +104,7 @@ public class MCPSseClient extends AbstractMCPClient {
 
         } catch (Exception e) {
             log.error("初始化 MCP SSE 客户端失败: {}", spec.getId(), e);
-            connected.set(false); // 确保连接状态正确
+            transitionToDisconnected(e, false, false); // 初始化失败不触发重连
             throw new McpConnectionException("初始化 SSE 客户端失败", e);
         }
     }
@@ -226,18 +215,24 @@ public class MCPSseClient extends AbstractMCPClient {
         try {
             log.debug("收到 SSE 事件 [{}]: {}", spec.getId(), event);
 
-            // 解析 SSE 事件格式
+            // 解析 SSE 事件格式，支持多行 data
             String eventType = null;
-            String eventData = null;
+            StringBuilder dataBuilder = new StringBuilder();
 
             String[] lines = event.split("\n");
             for (String line : lines) {
                 if (line.startsWith("event: ")) {
                     eventType = line.substring(7).trim();
                 } else if (line.startsWith("data: ")) {
-                    eventData = line.substring(6).trim();
+                    // 支持多行 data，按 SSE 规范用换行拼接
+                    if (dataBuilder.length() > 0) {
+                        dataBuilder.append('\n');
+                    }
+                    dataBuilder.append(line.substring(6));
                 }
             }
+
+            String eventData = dataBuilder.length() > 0 ? dataBuilder.toString() : null;
 
             if (eventType != null && eventData != null) {
                 handleTypedEvent(eventType, eventData);
@@ -299,8 +294,7 @@ public class MCPSseClient extends AbstractMCPClient {
                         log.info("MCP SSE 连接完全就绪: {}", spec.getId());
                     } catch (Exception e) {
                         log.error("握手协议失败 [{}]: {}", spec.getId(), e.getMessage());
-                        connectionReadyFuture.completeExceptionally(e);
-                        connected.set(false);
+                        transitionToDisconnected(e, true, false);
                     }
                 });
             }
@@ -333,8 +327,7 @@ public class MCPSseClient extends AbstractMCPClient {
                     log.info("MCP SSE 连接完全就绪: {}", spec.getId());
                 } catch (Exception e) {
                     log.error("握手协议失败 [{}]: {}", spec.getId(), e.getMessage());
-                    connectionReadyFuture.completeExceptionally(e);
-                    connected.set(false);
+                    transitionToDisconnected(e, true, false);
                 }
             });
         } catch (Exception e) {
@@ -384,11 +377,7 @@ public class MCPSseClient extends AbstractMCPClient {
             connectionReadyFuture.get(timeoutMs, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             log.error("等待连接就绪超时，可能服务端会话已过期 [{}]", spec.getId());
-            // 标记连接断开并尝试重连
-            connected.set(false);
-            if (shouldReconnect && !isReconnecting) {
-                attemptReconnection();
-            }
+            transitionToDisconnected(e, true, false);
             throw new McpConnectionException("等待连接就绪超时");
         } catch (Exception e) {
             throw new McpConnectionException("连接建立失败", e);
@@ -497,25 +486,58 @@ public class MCPSseClient extends AbstractMCPClient {
     // ==================== 连接重试与恢复相关函数 ====================
 
     /**
+     * 统一的断连和资源清理函数
+     * @param cause 断连原因（可为null）
+     * @param triggerReconnect 是否触发重连
+     * @param stopHeartbeat 是否停止心跳检测
+     */
+    private void transitionToDisconnected(Throwable cause, boolean triggerReconnect, boolean stopHeartbeat) {
+        log.debug("执行断连清理 [{}]: triggerReconnect={}, stopHeartbeat={}", spec.getId(), triggerReconnect, stopHeartbeat);
+
+        // 设置连接状态为断开
+        connected.set(false);
+
+        // 安全处置SSE订阅
+        safeDisposeSse();
+
+        // 完成所有待处理的请求
+        McpConnectionException disconnectException = new McpConnectionException(
+            cause != null ? "连接已断开: " + cause.getMessage() : "连接已断开", cause);
+        pendingRequests.values().forEach(future -> future.completeExceptionally(disconnectException));
+        pendingRequests.clear();
+
+        // 标记连接就绪失败（如果还未完成）
+        if (!connectionReadyFuture.isDone()) {
+            connectionReadyFuture.completeExceptionally(disconnectException);
+        }
+
+        // 停止心跳检测（如果需要）
+        if (stopHeartbeat) {
+            stopHeartbeat();
+        }
+
+        // 触发重连（如果需要）
+        if (triggerReconnect && shouldReconnect && !isReconnecting) {
+            attemptReconnection();
+        }
+    }
+
+    /**
      * 处理连接错误
      */
     private void handleConnectionError(Throwable error) {
         log.error("SSE 连接错误 [{}]: {}", spec.getId(), error.getMessage());
-        connected.set(false);
+        transitionToDisconnected(error, true, false);
+    }
 
-        // 标记连接就绪失败
-        if (!connectionReadyFuture.isDone()) {
-            connectionReadyFuture.completeExceptionally(new McpConnectionException("连接建立失败", error));
-        }
-
-        // 完成所有待处理的请求
-        pendingRequests.values().forEach(future ->
-            future.completeExceptionally(new McpConnectionException("连接已断开", error)));
-        pendingRequests.clear();
-
-        // 尝试重新连接
-        if (shouldReconnect) {
-            attemptReconnection();
+    /**
+     * 安全地处置 SSE 订阅
+     */
+    private void safeDisposeSse() {
+        if (sseSubscription != null && !sseSubscription.isDisposed()) {
+            log.debug("处置旧的 SSE 订阅 [{}]", spec.getId());
+            sseSubscription.dispose();
+            sseSubscription = null;
         }
     }
 
@@ -536,7 +558,10 @@ public class MCPSseClient extends AbstractMCPClient {
             isReconnecting = true;
         }
 
-        new Thread(() -> {
+        // 先处置旧的 SSE 连接，防止双连接
+        safeDisposeSse();
+
+        Thread t = new Thread(() -> {
             try {
                 for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS && shouldReconnect; attempt++) {
                     try {
@@ -568,7 +593,9 @@ public class MCPSseClient extends AbstractMCPClient {
             } finally {
                 isReconnecting = false;
             }
-        }).start();
+        });
+        t.setDaemon(true);
+        t.start();
     }
     
     /**
@@ -590,21 +617,24 @@ public class MCPSseClient extends AbstractMCPClient {
             // 建立 SSE 连接
             this.eventStream = webClient.get()
                     .uri(sseUri)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
                     .retrieve()
                     .bodyToFlux(String.class)
                     .doOnNext(this::handleServerEvent)
                     .doOnError(this::handleConnectionError)
                     .doOnComplete(() -> {
-                        log.info("SSE 连接已关闭: {}", spec.getId());
-                        connected.set(false);
+                        log.info("SSE 重连连接已关闭: {}", spec.getId());
+                        // 重连场景下的连接关闭不再触发新的重连，避免无限循环
+                        // 由 attemptReconnection 的重试循环来处理后续重连
+                        transitionToDisconnected(null, false, false);
                     });
 
             // 订阅事件流
-            eventStream.subscribe();
+            this.sseSubscription = eventStream.subscribe();
 
         } catch (Exception e) {
             log.debug("SSE 连接初始化失败: {}", e.getMessage());
-            connected.set(false);
+            transitionToDisconnected(e, false, false);
         }
     }
 
@@ -612,32 +642,9 @@ public class MCPSseClient extends AbstractMCPClient {
 
     @Override
     public void disconnect() {
-        if (!isConnected()) {
-            log.debug("MCP SSE 客户端已断开: {}", spec.getId());
-            return;
-        }
-
         log.info("断开 MCP SSE 客户端连接: {}", spec.getId());
         shouldReconnect = false;
-        connected.set(false);
-
-        // 停止心跳检测
-        stopHeartbeat();
-
-        // 标记连接就绪失败（如果还未完成）
-        if (!connectionReadyFuture.isDone()) {
-            connectionReadyFuture.completeExceptionally(new McpConnectionException("连接已断开"));
-        }
-
-        // 完成所有待处理的请求
-        pendingRequests.values().forEach(future ->
-            future.completeExceptionally(new McpConnectionException("连接已断开")));
-        pendingRequests.clear();
-
-        // 关闭事件流
-        if (sseSubscription != null && !sseSubscription.isDisposed()) {
-            sseSubscription.dispose();
-        }
+        transitionToDisconnected(null, false, true);
     }
 
     @Override
@@ -668,8 +675,14 @@ public class MCPSseClient extends AbstractMCPClient {
         if (!heartbeatEnabled) {
             return;
         }
-        
-        heartbeatExecutor.scheduleWithFixedDelay(this::performHeartbeat, 
+
+        // 防止重复调度心跳任务
+        if (heartbeatFuture != null && !heartbeatFuture.isCancelled()) {
+            log.debug("心跳检测已在运行 [{}]，跳过重复启动", spec.getId());
+            return;
+        }
+
+        heartbeatFuture = heartbeatExecutor.scheduleWithFixedDelay(this::performHeartbeat,
                 HEARTBEAT_INTERVAL_MS, HEARTBEAT_INTERVAL_MS, TimeUnit.MILLISECONDS);
         log.debug("启动SSE心跳检测 [{}], 间隔: {}ms", spec.getId(), HEARTBEAT_INTERVAL_MS);
     }
@@ -743,14 +756,7 @@ public class MCPSseClient extends AbstractMCPClient {
      */
     private void handleHeartbeatError(Throwable error) {
         log.warn("心跳检测失败 [{}]: {}, 尝试重连", spec.getId(), error.getMessage());
-        
-        // 标记连接断开
-        connected.set(false);
-        
-        // 触发重连
-        if (shouldReconnect && !isReconnecting) {
-            attemptReconnection();
-        }
+        transitionToDisconnected(error, true, false);
     }
     
     /**
@@ -758,6 +764,13 @@ public class MCPSseClient extends AbstractMCPClient {
      */
     private void stopHeartbeat() {
         heartbeatEnabled = false;
+
+        // 取消心跳任务
+        if (heartbeatFuture != null && !heartbeatFuture.isCancelled()) {
+            heartbeatFuture.cancel(true);
+            heartbeatFuture = null;
+        }
+
         if (heartbeatExecutor != null && !heartbeatExecutor.isShutdown()) {
             heartbeatExecutor.shutdown();
             try {
