@@ -12,6 +12,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import org.springframework.http.MediaType;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -79,13 +80,9 @@ public class MCPSseClient extends AbstractMCPClient {
         try {
             log.info("建立 MCP SSE 连接: {}", spec.getUrl());
 
-            // 确定 SSE 端点 URI
-            String sseUri = determineSseUri();
-            log.debug("使用 SSE 端点: {}", sseUri);
-
             // 建立 SSE 连接
             this.eventStream = webClient.get()
-                    .uri(sseUri)
+                    .uri(determineSseUri())
                     .accept(MediaType.TEXT_EVENT_STREAM)
                     .retrieve()
                     .bodyToFlux(String.class)
@@ -166,12 +163,28 @@ public class MCPSseClient extends AbstractMCPClient {
 
             // 发送 notifications/initialized 通知（使用内部方法）
             JsonNode initializedNotification = buildInitializedNotification();
-            sendNotificationInternal(initializedNotification);
+            try {
+                sendNotificationInternal(initializedNotification);
+                log.debug("已发送 notifications/initialized 通知 [{}]", spec.getId());
+            } catch (McpConnectionException e) {
+                // 对于通知，某些服务器可能不返回响应，这是正常的
+                log.debug("发送 notifications/initialized 通知时收到异常，但这可能是正常的 [{}]: {}", spec.getId(), e.getMessage());
+            }
 
             log.debug("MCP SSE 握手协议完成: {}", spec.getId());
+            // 握手成功后重置心跳时间戳
+            lastHeartbeatTime = System.currentTimeMillis();
+            // 握手成功后，标记连接完全就绪
+            if (connectionReadyFuture != null && !connectionReadyFuture.isDone()) {
+                connectionReadyFuture.complete(null);
+            }
+            log.info("MCP SSE 连接完全就绪: {}", spec.getId());
 
         } catch (Exception e) {
             log.error("MCP SSE 握手协议失败: {}", spec.getId(), e);
+            if (connectionReadyFuture != null && !connectionReadyFuture.isDone()) {
+                connectionReadyFuture.completeExceptionally(e);
+            }
             throw new McpConnectionException("SSE 握手协议失败", e);
         }
     }
@@ -287,11 +300,6 @@ public class MCPSseClient extends AbstractMCPClient {
                 CompletableFuture.runAsync(() -> {
                     try {
                         performHandshake();
-                        // 握手成功后重置心跳时间戳
-                        lastHeartbeatTime = System.currentTimeMillis();
-                        // 握手成功后，标记连接完全就绪
-                        connectionReadyFuture.complete(null);
-                        log.info("MCP SSE 连接完全就绪: {}", spec.getId());
                     } catch (Exception e) {
                         log.error("握手协议失败 [{}]: {}", spec.getId(), e.getMessage());
                         transitionToDisconnected(e, true, false);
@@ -320,11 +328,6 @@ public class MCPSseClient extends AbstractMCPClient {
             CompletableFuture.runAsync(() -> {
                 try {
                     performHandshake();
-                    // 握手成功后重置心跳时间戳
-                    lastHeartbeatTime = System.currentTimeMillis();
-                    // 握手成功后，标记连接完全就绪
-                    connectionReadyFuture.complete(null);
-                    log.info("MCP SSE 连接完全就绪: {}", spec.getId());
                 } catch (Exception e) {
                     log.error("握手协议失败 [{}]: {}", spec.getId(), e.getMessage());
                     transitionToDisconnected(e, true, false);
@@ -539,6 +542,7 @@ public class MCPSseClient extends AbstractMCPClient {
             sseSubscription.dispose();
             sseSubscription = null;
         }
+        eventStream = null;
     }
 
     /**
@@ -568,8 +572,12 @@ public class MCPSseClient extends AbstractMCPClient {
                         log.info("尝试重新连接 SSE [{}] - 第 {} 次尝试", spec.getId(), attempt);
                         reconnectAttempts = attempt;
 
-                        // 等待一段时间后重试
-                        Thread.sleep(RETRY_DELAY_MS * attempt);
+                        // 退避等待
+                        try {
+                            Thread.sleep(RETRY_DELAY_MS * attempt);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
 
                         // 重新初始化连接
                         initializeConnectionInternal();
@@ -579,6 +587,12 @@ public class MCPSseClient extends AbstractMCPClient {
                             lastHeartbeatTime = System.currentTimeMillis();
                             log.info("SSE 重新连接成功 [{}]", spec.getId());
                             reconnectAttempts = 0; // 重置重连计数
+
+                            // 确保心跳在线
+                            if (heartbeatExecutor == null || heartbeatExecutor.isShutdown()) {
+                                createHeartbeatExecutor();
+                            }
+                            heartbeatEnabled = true;
                             // 重新启动心跳检测
                             startHeartbeat();
                             return;
@@ -610,13 +624,9 @@ public class MCPSseClient extends AbstractMCPClient {
                 connectionReadyFuture = new CompletableFuture<>();
             }
 
-            // 确定 SSE 端点 URI
-            String sseUri = determineSseUri();
-            log.debug("重连使用 SSE 端点: {}", sseUri);
-
             // 建立 SSE 连接
             this.eventStream = webClient.get()
-                    .uri(sseUri)
+                    .uri(determineSseUri())
                     .accept(MediaType.TEXT_EVENT_STREAM)
                     .retrieve()
                     .bodyToFlux(String.class)
@@ -642,6 +652,10 @@ public class MCPSseClient extends AbstractMCPClient {
 
     @Override
     public void disconnect() {
+        if (!isConnected()) {
+            log.debug("MCP SSE 客户端已断开: {}", spec.getId());
+            return;
+        }
         log.info("断开 MCP SSE 客户端连接: {}", spec.getId());
         shouldReconnect = false;
         transitionToDisconnected(null, false, true);
@@ -650,8 +664,9 @@ public class MCPSseClient extends AbstractMCPClient {
     @Override
     public void close() {
         log.info("关闭 MCP SSE 客户端: {}", spec.getId());
-        stopHeartbeat();
         disconnect();
+        // 清空messageEndpointUri
+        messageEndpointUri = null;
     }
     
     // ==================== 心跳保活相关函数 ====================
@@ -672,10 +687,10 @@ public class MCPSseClient extends AbstractMCPClient {
      * 启动心跳检测
      */
     private void startHeartbeat() {
-        if (!heartbeatEnabled) {
-            return;
+        if (!heartbeatEnabled) return;
+        if (heartbeatExecutor == null || heartbeatExecutor.isShutdown()) {
+            createHeartbeatExecutor();
         }
-
         // 防止重复调度心跳任务
         if (heartbeatFuture != null && !heartbeatFuture.isCancelled()) {
             log.debug("心跳检测已在运行 [{}]，跳过重复启动", spec.getId());
@@ -701,8 +716,8 @@ public class MCPSseClient extends AbstractMCPClient {
 
             // 发送一个轻量级的ping请求来检测连接
             if (messageEndpointUri != null) {
-                // 构建一个简单的ping请求（JSON-RPC格式）
-                JsonNode pingRequest = buildPingRequest();
+                // 使用 tools/list 进行轻量心跳
+                JsonNode pingRequest = buildListToolsRequest();
                 sendHeartbeatRequest(pingRequest);
             }
         } catch (Exception e) {
@@ -710,35 +725,21 @@ public class MCPSseClient extends AbstractMCPClient {
             handleHeartbeatError(e);
         }
     }
-
-    /**
-     * 构建心跳检测用的ping请求
-     */
-    private JsonNode buildPingRequest() {
-        ObjectNode request = objectMapper.createObjectNode();
-        request.put("jsonrpc", "2.0");
-        request.put("id", System.currentTimeMillis()); // 使用时间戳作为ID，避免与正常请求冲突
-        request.put("method", "tools/list"); // 使用tools/list方法进行心跳检测，这个方法轻量且服务器必须支持
-        request.set("params", objectMapper.createObjectNode()); // 空参数
-        return request;
-    }
     
     /**
      * 发送心跳检测请求
      */
     private void sendHeartbeatRequest(JsonNode request) {
         try {
-            String requestUri = calculateRequestUri(messageEndpointUri);
-            
             // 心跳检测只是为了验证连接是否有效，不需要等待响应
             // 如果连接有问题，在POST请求阶段就会失败
             webClient.post()
-                    .uri(requestUri)
-                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .uri(calculateRequestUri(messageEndpointUri))
+                    .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(request.toString())
                     .retrieve()
                     .toBodilessEntity()  // 不关心响应内容，只关心请求是否成功发送
-                    .timeout(java.time.Duration.ofMillis(HEARTBEAT_TIMEOUT_MS))
+                    .timeout(Duration.ofMillis(HEARTBEAT_TIMEOUT_MS))
                     .doOnSuccess(response -> {
                         log.debug("心跳检测请求发送成功 [{}]", spec.getId());
                     })

@@ -48,7 +48,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
         type: server.type,
         url: server.url || '',
         command: server.command || '',
-        args: server.args ? server.args.join('\n') : '',
+        args: server.args ? server.args.split(' ').join('\n') : '',
         env: server.env ? Object.entries(server.env).map(([key, value]) => `${key}=${value}`).join('\n') : '',
         disabled: server.disabled
       });
@@ -132,7 +132,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
       type: formData.type,
       url: formData.url.trim() || undefined,
       command: formData.command.trim() || undefined,
-      args: formData.args.trim() ? formData.args.split('\n').map(arg => arg.trim()).filter(arg => arg) : undefined,
+      args: formData.args.trim() ? formData.args.split('\n').map(arg => arg.trim()).filter(arg => arg).join(' ') : undefined,
       env: formData.env.trim() ?
         Object.fromEntries(
           formData.env.split('\n')

@@ -34,10 +34,8 @@ public class McpServerSpec {
     
     private String command;
     
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "mcp_server_args", joinColumns = @JoinColumn(name = "server_id"))
-    @Column(name = "arg")
-    private List<String> args;
+    @Column(name = "args")
+    private String args;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "mcp_server_env", joinColumns = @JoinColumn(name = "server_id"))

@@ -534,15 +534,23 @@ public class MCPStdioClient implements MCPClient {
     private void initializeProcess() {
         try {
             ProcessBuilder pb = new ProcessBuilder(spec.getCommand());
-            pb.command().addAll(spec.getArgs());
+            if (spec.getArgs() != null && !spec.getArgs().trim().isEmpty()) {
+                // 将args字符串按空格分割为参数列表
+                String[] argsArray = spec.getArgs().trim().split("\\s+");
+                for (String arg : argsArray) {
+                    if (!arg.isEmpty()) {
+                        pb.command().add(arg);
+                    }
+                }
+            }
             if (spec.getEnv() != null) {
                 pb.environment().putAll(spec.getEnv());
             }
-            
+
             this.process = pb.start();
             this.writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
             this.reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            
+
             // 初始化握手
             performHandshake();
         } catch (Exception e) {
@@ -691,8 +699,8 @@ public class McpServerSpec {
     private String url;
     private String command;
     
-    @ElementCollection
-    private List<String> args;
+    @Column(name = "args")
+    private String args;
     
     @ElementCollection
     private Map<String, String> env;

@@ -23,6 +23,6 @@ public class DatabaseConfig {
     public void onApplicationReady() {
         log.info("MCP Client 数据库初始化完成");
         log.info("SQLite 数据库连接成功");
-        log.info("数据库连接 URL: jdbc:sqlite:mcp.db");
+        log.info("数据库连接 URL: jdbc:sqlite:{}/mcp-client/mcp.db", System.getProperty("user.dir"));
     }
 }

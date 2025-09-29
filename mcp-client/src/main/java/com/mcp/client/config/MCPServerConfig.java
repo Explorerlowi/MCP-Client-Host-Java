@@ -26,7 +26,7 @@ public class MCPServerConfig {
         private String[] args;
         private Map<String, String> env;
         private String url;
-        private String type = "stdio"; // 传输类型，默认为 stdio
+        private String type; // 传输类型，null时自动推断
         private boolean disabled = false;
         private String description;
         private Long timeout; // 请求超时时间（秒）

@@ -136,8 +136,8 @@ public class MCPConfigurationService {
                     throw new IllegalArgumentException("STDIO 传输需要指定 command");
                 }
                 builder.command(config.getCommand());
-                if (config.getArgs() != null) {
-                    builder.args(Arrays.asList(config.getArgs()));
+                if (config.getArgs() != null && config.getArgs().length > 0) {
+                    builder.args(String.join(" ", config.getArgs()));
                 }
                 if (config.getEnv() != null) {
                     builder.env(config.getEnv());

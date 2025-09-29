@@ -13,7 +13,7 @@ export interface McpServerSpec {
   type: TransportType;
   url?: string;
   command?: string;
-  args?: string[];
+  args?: string;
   env?: Record<string, string>;
   disabled: boolean;
   timeout?: number;

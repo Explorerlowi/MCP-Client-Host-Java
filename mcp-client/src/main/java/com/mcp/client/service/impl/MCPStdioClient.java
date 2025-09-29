@@ -46,9 +46,9 @@ public class MCPStdioClient extends AbstractMCPClient {
      */
     private void initializeProcess() {
         try {
-            // 安全地构建日志信息，避免懒加载异常
-            String argsInfo = (spec.getArgs() != null && !spec.getArgs().isEmpty())
-                ? String.join(" ", spec.getArgs())
+            // 安全地构建日志信息
+            String argsInfo = (spec.getArgs() != null && !spec.getArgs().trim().isEmpty())
+                ? spec.getArgs()
                 : "(无参数)";
             log.info("启动 MCP 服务器进程: {} {}", spec.getCommand(), argsInfo);
 
@@ -58,8 +58,14 @@ public class MCPStdioClient extends AbstractMCPClient {
             String command = resolveCommand(spec.getCommand());
             pb.command(command);
 
-            if (spec.getArgs() != null && !spec.getArgs().isEmpty()) {
-                pb.command().addAll(spec.getArgs());
+            if (spec.getArgs() != null && !spec.getArgs().trim().isEmpty()) {
+                // 将args字符串按空格分割为参数列表
+                String[] argsArray = spec.getArgs().trim().split("\\s+");
+                for (String arg : argsArray) {
+                    if (!arg.isEmpty()) {
+                        pb.command().add(arg);
+                    }
+                }
             }
             
             if (spec.getEnv() != null && !spec.getEnv().isEmpty()) {
