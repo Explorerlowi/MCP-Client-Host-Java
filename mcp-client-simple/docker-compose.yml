@@ -1,0 +1,18 @@
+services:
+  mcp-client:
+    build: .
+    container_name: mcp-client
+    ports:
+      - "8086:8086"
+      - "8686:8686"
+    volumes:
+      - sqlite_data:/app/data
+      # 缓存卷（提升 uvx/npx 首次拉包速度）
+      - mcpclient_cache:/home/mcpclient/.cache
+      - mcpclient_npm:/home/mcpclient/.npm
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:
+  mcpclient_cache:
+  mcpclient_npm:
