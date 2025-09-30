@@ -10,9 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * MCP 配置服务
@@ -190,6 +189,70 @@ public class MCPConfigurationService {
 
         // 默认使用 STDIO
         return TransportType.STDIO;
+    }
+
+    /**
+     * 导出所有服务器配置为 JSON 字符串
+     * @return JSON 配置字符串
+     */
+    public String exportConfigurationToJson() {
+        try {
+            // 从数据库获取所有服务器配置
+            List<McpServerSpec> specs = repository.findAll();
+            log.info("准备导出 {} 个服务器配置", specs.size());
+
+            // 转换为 MCPServerConfig 格式
+            Map<String, MCPServerConfig.ServerConfig> mcpServers = specs.stream()
+                    .collect(Collectors.toMap(
+                            McpServerSpec::getId,
+                            this::convertToServerConfig
+                    ));
+
+            MCPServerConfig config = new MCPServerConfig();
+            config.setMcpServers(mcpServers);
+
+            // 序列化为 JSON
+            String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
+            log.info("配置导出成功");
+            return json;
+
+        } catch (Exception e) {
+            log.error("导出配置失败", e);
+            throw new RuntimeException("配置导出失败", e);
+        }
+    }
+
+    /**
+     * 将 McpServerSpec 转换为 ServerConfig
+     * @param spec 服务器规格
+     * @return 服务器配置
+     */
+    private MCPServerConfig.ServerConfig convertToServerConfig(McpServerSpec spec) {
+        MCPServerConfig.ServerConfig config = new MCPServerConfig.ServerConfig();
+
+        // 设置基本信息
+        config.setType(spec.getType().name().toLowerCase());
+        config.setDisabled(spec.isDisabled());
+        config.setDescription(spec.getDescription());
+        config.setTimeout(spec.getTimeout());
+
+        // 根据传输类型设置相应的配置
+        switch (spec.getType()) {
+            case STDIO:
+                config.setCommand(spec.getCommand());
+                if (spec.getArgs() != null && !spec.getArgs().isEmpty()) {
+                    config.setArgs(spec.getArgs().split("\\s+"));
+                }
+                config.setEnv(spec.getEnv());
+                break;
+
+            case SSE:
+            case STREAMABLEHTTP:
+                config.setUrl(spec.getUrl());
+                break;
+        }
+
+        return config;
     }
 
 }

@@ -143,6 +143,23 @@ export class ServerApiService {
     }
   }
 
+  /**
+   * 导出所有服务器配置为JSON
+   */
+  static async exportToJson(): Promise<string> {
+    try {
+      const response = await axios.get<string>('/api/mcp/config/export', {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('配置导出失败:', error);
+      throw new Error('配置导出失败');
+    }
+  }
+
 
 
   /**

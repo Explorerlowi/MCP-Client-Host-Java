@@ -87,6 +87,38 @@ const JsonImportForm: React.FC<JsonImportFormProps> = ({
     }
   };
 
+  // 处理文件导入
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 检查文件类型
+    if (!file.name.endsWith('.json')) {
+      setError('请选择 JSON 文件');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        // 验证JSON格式
+        JSON.parse(content);
+        setJsonConfig(content);
+        setError('');
+      } catch (err) {
+        setError('文件内容不是有效的JSON格式');
+      }
+    };
+    reader.onerror = () => {
+      setError('读取文件失败');
+    };
+    reader.readAsText(file);
+
+    // 重置input，允许重复选择同一文件
+    e.target.value = '';
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-slate-950/95 border border-cyan-400/30 shadow-[0_0_30px_rgba(0,255,170,0.2)]">
@@ -99,10 +131,10 @@ const JsonImportForm: React.FC<JsonImportFormProps> = ({
         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
           <div className="space-y-3">
             <p className="text-slate-300 text-sm leading-relaxed">
-              支持导入标准的 MCP 服务器配置格式。请粘贴您的 JSON 配置，系统会自动解析并添加服务器。
+              支持导入标准的 MCP 服务器配置格式。您可以粘贴 JSON 配置或从文件导入。
             </p>
-            
-            <div className="flex gap-2">
+
+            <div className="flex gap-2 flex-wrap">
               <Button
                 type="button"
                 variant="outline"
@@ -113,6 +145,26 @@ const JsonImportForm: React.FC<JsonImportFormProps> = ({
               >
                 使用示例配置
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('file-input')?.click()}
+                disabled={isLoading}
+                className="border-emerald-400/30 text-emerald-300 hover:bg-emerald-400/10"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                从文件导入
+              </Button>
+              <input
+                id="file-input"
+                type="file"
+                accept=".json"
+                onChange={handleFileImport}
+                className="hidden"
+              />
               <Button
                 type="button"
                 variant="outline"

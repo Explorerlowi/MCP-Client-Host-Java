@@ -49,6 +49,10 @@ public class MCPSseClient extends AbstractMCPClient {
     private volatile boolean heartbeatEnabled = true; // 是否启用心跳检测
     private static final long HEARTBEAT_INTERVAL_MS = 60000; // 心跳间隔60秒
     private static final long HEARTBEAT_TIMEOUT_MS = 15000; // 心跳超时15秒
+
+    // 工具信息缓存
+    private volatile List<MCPTool> cachedTools = null; // 缓存的工具列表
+    private final Object toolsCacheLock = new Object(); // 工具缓存锁
     
     public MCPSseClient(McpServerSpec spec) {
         super(spec);
@@ -714,11 +718,10 @@ public class MCPSseClient extends AbstractMCPClient {
             // 更新心跳时间记录
             lastHeartbeatTime = System.currentTimeMillis();
 
-            // 发送一个轻量级的ping请求来检测连接
+            // 通过调用 getTools() 来更新工具缓存并进行心跳检测
             if (messageEndpointUri != null) {
-                // 使用 tools/list 进行轻量心跳
-                JsonNode pingRequest = buildListToolsRequest();
-                sendHeartbeatRequest(pingRequest);
+                log.debug("执行心跳检测并更新工具缓存 [{}]", spec.getId());
+                getTools();
             }
         } catch (Exception e) {
             log.warn("心跳检测执行异常 [{}]: {}", spec.getId(), e.getMessage());
@@ -814,20 +817,38 @@ public class MCPSseClient extends AbstractMCPClient {
 
     @Override
     public List<MCPTool> getTools() {
-        try {
-            log.debug("获取 MCP SSE 工具列表: {}", spec.getId());
+        // 首先尝试从缓存获取
+        if (cachedTools != null) {
+            log.debug("从缓存获取 MCP SSE 工具列表: {} (共 {} 个工具)", spec.getId(), cachedTools.size());
+            return cachedTools;
+        }
 
-            JsonNode request = buildListToolsRequest();
-            JsonNode response = sendRequest(request);
+        // 缓存未命中，从服务器获取
+        synchronized (toolsCacheLock) {
+            // 双重检查，防止并发请求
+            if (cachedTools != null) {
+                return cachedTools;
+            }
 
-            List<MCPTool> tools = parseToolsList(response);
-            log.debug("获取到 {} 个 MCP SSE 工具: {}", tools.size(), spec.getId());
+            try {
+                log.debug("从服务器获取 MCP SSE 工具列表: {}", spec.getId());
 
-            return tools;
+                JsonNode request = buildListToolsRequest();
+                JsonNode response = sendRequest(request);
 
-        } catch (Exception e) {
-            log.error("获取 MCP SSE 工具列表失败: {}", spec.getId(), e);
-            return List.of();
+                List<MCPTool> tools = parseToolsList(response);
+                log.debug("获取到 {} 个 MCP SSE 工具: {}", tools.size(), spec.getId());
+
+                // 更新缓存
+                cachedTools = tools;
+
+                return tools;
+
+            } catch (Exception e) {
+                log.error("获取 MCP SSE 工具列表失败: {}", spec.getId(), e);
+                // 如果有旧缓存，返回旧缓存；否则返回空列表
+                return cachedTools != null ? cachedTools : List.of();
+            }
         }
     }
     

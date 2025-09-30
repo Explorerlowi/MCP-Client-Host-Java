@@ -3,6 +3,8 @@ package com.mcp.client.controller;
 import com.mcp.client.service.MCPConfigurationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,7 +18,7 @@ import java.util.Map;
 @RequestMapping("/api/mcp/config")
 @RequiredArgsConstructor
 public class MCPConfigurationController {
-    
+
     private final MCPConfigurationService configurationService;
 
     /**
@@ -42,6 +44,31 @@ public class MCPConfigurationController {
                     "status", "error",
                     "message", "配置导入失败: " + e.getMessage()
             ));
+        }
+    }
+
+    /**
+     * 导出所有服务器配置为 JSON
+     * @return JSON 配置字符串
+     */
+    @GetMapping("/export")
+    public ResponseEntity<String> exportConfiguration() {
+        try {
+            log.info("接收到配置导出请求");
+            String configJson = configurationService.exportConfigurationToJson();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setContentDispositionFormData("attachment", "mcp-config.json");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(configJson);
+
+        } catch (Exception e) {
+            log.error("配置导出失败", e);
+            return ResponseEntity.internalServerError()
+                    .body("{\"status\":\"error\",\"message\":\"配置导出失败: " + e.getMessage() + "\"}");
         }
     }
 
