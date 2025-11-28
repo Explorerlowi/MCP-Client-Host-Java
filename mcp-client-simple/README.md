@@ -40,6 +40,17 @@ docker-compose logs -f
 docker-compose down
 ```
 
+### 4. 加入你已存在的主应用容器网络
+```bash
+docker network connect qm2_app-network mcp-client
+```
+qm2_app-network替换为你已存在的主应用容器网络名称
+如何获取已存在的容器网络名称？
+```bash
+docker network ls
+```
+
+
 ## 服务访问
 
 - **REST API**: http://服务器IP:8086

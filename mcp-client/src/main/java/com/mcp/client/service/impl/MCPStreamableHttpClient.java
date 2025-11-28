@@ -225,6 +225,51 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
     // ==================== 消息传输相关函数 ====================
 
     /**
+     * 解析 SSE 格式的响应
+     * SSE 格式示例:
+     * id:1
+     * event:message
+     * data:{"jsonrpc":"2.0","id":1,"result":{...}}
+     */
+    private JsonNode parseSseResponse(String sseResponse) throws McpConnectionException {
+        try {
+            StringBuilder dataBuilder = new StringBuilder();
+
+            String[] lines = sseResponse.split("\n");
+            for (String line : lines) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("data:")) {
+                    // 提取 data: 后面的内容
+                    String dataContent = trimmed.substring(5).trim();
+                    if (dataBuilder.length() > 0) {
+                        dataBuilder.append('\n');
+                    }
+                    dataBuilder.append(dataContent);
+                } else if (trimmed.startsWith("data: ")) {
+                    // 兼容 "data: " (有空格) 的格式
+                    String dataContent = trimmed.substring(6);
+                    if (dataBuilder.length() > 0) {
+                        dataBuilder.append('\n');
+                    }
+                    dataBuilder.append(dataContent);
+                }
+            }
+
+            String jsonData = dataBuilder.toString();
+            if (jsonData.isEmpty()) {
+                throw new McpConnectionException("SSE 响应中没有找到 data 字段");
+            }
+
+            log.debug("从 SSE 响应中提取的 JSON 数据 [{}]: {}", spec.getId(), jsonData);
+            return objectMapper.readTree(jsonData);
+
+        } catch (Exception e) {
+            log.error("解析 SSE 响应失败 [{}]: {}", spec.getId(), sseResponse, e);
+            throw new McpConnectionException("解析 SSE 响应失败", e);
+        }
+    }
+
+    /**
      * 处理服务器事件
      */
     private void handleServerEvent(String event) {
@@ -423,7 +468,14 @@ public class MCPStreamableHttpClient extends AbstractMCPClient {
 
             log.debug("收到 MCP Streamable HTTP 响应 [{}]: {}", spec.getId(), responseStr);
 
-            return objectMapper.readTree(responseStr);
+            // 检查响应是否为 SSE 格式
+            if (responseStr.trim().startsWith("id:") || responseStr.trim().startsWith("event:") || responseStr.trim().startsWith("data:")) {
+                // 解析 SSE 格式响应
+                return parseSseResponse(responseStr);
+            } else {
+                // 直接解析 JSON 响应
+                return objectMapper.readTree(responseStr);
+            }
 
         } catch (WebClientResponseException e) {
             log.error("HTTP 请求失败 [{}]: {} - {}", spec.getId(), e.getStatusCode(), e.getResponseBodyAsString());
